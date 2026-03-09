@@ -1,0 +1,10 @@
+{
+  "id": "kit-u4",
+  "extends": "kit-u3",
+  "displayName": "UI Existing Selenium Base Framework",
+  "mode": "existing",
+  "agents": {
+    "scaffolder": "./kits/kit-u4/agents/framework-analyzer-java-agent.md"
+  },
+  "notes": "Same as Kit-U3 but integrates into an existing Selenium Java framework. Framework analyzer detects Maven structure, existing POMs, BaseTest class, and WebDriver setup."
+}

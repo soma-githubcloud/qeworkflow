@@ -1,0 +1,22 @@
+{
+  "id": "kit-u2",
+  "extends": "kit-u1",
+  "displayName": "UI Existing Playwright Base",
+  "mode": "existing",
+  "tech": {
+    "language": "typescript",
+    "testRunner": "playwright",
+    "apiClient": null,
+    "bddRunner": null
+  },
+  "testStyle": "non-bdd",
+  "locatorStrategies": ["playwright-mcp", "dom-based", "ai-guided"],
+  "reporting": ["playwright-html", "allure"],
+  "agents": {
+    "locator": "./kits/_base/agents/locator-agent.md",
+    "testGenerator": "./kits/_base/agents/test-generator-agent.md",
+    "scaffolder": "./kits/kit-u2/agents/framework-analyzer-agent.md",
+    "reporting": "./kits/_base/agents/reporting-agent.md"
+  },
+  "notes": "Inherits all templates from kit-u1. Scaffolder is replaced with framework-analyzer-agent that reads existing structure before injecting generated files."
+}

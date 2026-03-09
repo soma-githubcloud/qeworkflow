@@ -1,0 +1,67 @@
+{
+  "id": "kit-u1",
+  "extends": null,
+  "displayName": "UI Greenfield — Playwright TypeScript",
+  "mode": "greenfield",
+  "tech": {
+    "language": "typescript",
+    "testRunner": "playwright",
+    "apiClient": null,
+    "bddRunner": null,
+    "bddRunnerBdd": "@cucumber/cucumber"
+  },
+  "testStyle": "both",
+  "locatorStrategies": ["playwright-mcp", "dom-based", "ai-guided"],
+  "reporting": ["playwright-html", "allure"],
+  "outputDir": "./outputs",
+  "templates": "./kits/kit-u1/templates",
+  "agents": {
+    "intake": "./kits/_base/agents/intake-agent.md",
+    "locator": "./kits/_base/agents/locator-agent.md",
+    "pom": "./kits/_base/agents/pom-agent.md",
+    "testGenerator": "./kits/_base/agents/testgen-agent.md",
+    "bdd": "./kits/_base/agents/bdd-agent.md",
+    "dataGen": "./kits/_base/agents/datagen-agent.md",
+    "scaffolder": "./kits/kit-u1/agents/framework-setup-agent.md",
+    "reporting": "./kits/_base/agents/reporting-agent.md",
+    "ci": "./kits/_base/agents/ci-agent.md"
+  },
+  "namingConventions": {
+    "pageObjectSuffix": "Page",
+    "specFileSuffix": ".spec.ts",
+    "featureFileDir": "tests/bdd",
+    "stepsFileDir": "tests/bdd",
+    "stepFileSuffix": ".steps.ts",
+    "pomDir": "src/pages",
+    "testDir": "tests/nonbdd",
+    "fixturesDir": "src/fixtures"
+  },
+  "strategyDefaults": {
+    "playwright-mcp": {
+      "testStyle": "both",
+      "reason": "Live URL — full browser interaction supports both spec and BDD generation"
+    },
+    "dom-based": {
+      "testStyle": "nonbdd",
+      "reason": "Static DOM — assertion-heavy specs; BDD requires live interaction to be meaningful"
+    },
+    "ai-guided": {
+      "testStyle": "nonbdd",
+      "reason": "No source — inferred selectors only; defer BDD until locators are confirmed"
+    }
+  },
+  "dependencies": {
+    "pinned": {
+      "@playwright/test": "^1.44.0",
+      "allure-playwright": "^3.0.0",
+      "typescript": "^5.4.0",
+      "@faker-js/faker": "^8.4.0"
+    },
+    "bddExtra": {
+      "@cucumber/cucumber": "^10.0.0",
+      "allure-cucumberjs": "^3.0.0",
+      "@types/node": "^20.0.0"
+    }
+  },
+  "projectName": "playwright-greenfieldproject"
+}

@@ -1,0 +1,78 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@playwright/mcp@latest", "--headless"],
+      "env": {}
+    },
+    "filesystem": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."],
+      "env": {}
+    },
+    "git": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-git", "--repository", "."],
+      "env": {}
+    },
+    "shell": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-shell"],
+      "env": {}
+    }
+  },
+  "permissions": {
+    "allow": [
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_fill",
+      "mcp__playwright__browser_select_option",
+      "mcp__playwright__browser_screenshot",
+      "mcp__playwright__browser_close",
+      "mcp__filesystem__read_file",
+      "mcp__filesystem__write_file",
+      "mcp__filesystem__list_directory",
+      "mcp__filesystem__create_directory",
+      "mcp__filesystem__move_file",
+      "mcp__git__git_init",
+      "mcp__git__git_add",
+      "mcp__git__git_commit",
+      "mcp__git__git_status",
+      "mcp__git__git_log",
+      "mcp__shell__execute_command",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(npm ci)",
+      "Bash(npx playwright install*)",
+      "Bash(npx playwright test*)",
+      "Bash(npx tsc*)",
+      "Bash(npx cucumber-js*)",
+      "Bash(npx allure*)",
+      "Bash(mvn *)",
+      "Bash(pytest *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force*)",
+      "Bash(git push -f *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"[Kit] File written: $TOOL_INPUT_FILE_PATH\""
+          }
+        ]
+      }
+    ]
+  }
+}

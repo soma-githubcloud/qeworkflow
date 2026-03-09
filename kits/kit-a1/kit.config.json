@@ -1,0 +1,30 @@
+{
+  "id": "kit-a1",
+  "extends": null,
+  "displayName": "API Testing — Java RestAssured + TestNG/JUnit5",
+  "mode": "greenfield",
+  "tech": {
+    "language": "java",
+    "testRunner": "testng",
+    "apiClient": "rest-assured",
+    "bddRunner": null,
+    "bddRunnerBdd": "cucumber-java"
+  },
+  "testStyle": "non-bdd",
+  "locatorStrategies": [],
+  "reporting": ["allure"],
+  "outputDir": "./generated",
+  "templates": "./kits/kit-a1/templates",
+  "agents": {
+    "locator": null,
+    "apiSpecParser": "./kits/kit-a1/agents/api-spec-parser-agent.md",
+    "testGenerator": "./kits/_base/agents/test-generator-agent.md",
+    "scaffolder": "./kits/_base/agents/scaffolder-agent.md",
+    "reporting": "./kits/_base/agents/reporting-agent.md"
+  },
+  "inputs": {
+    "supported": ["test-cases", "postman-collection", "openapi-spec"],
+    "locatorRequired": false
+  },
+  "notes": "No locator agent. API spec parser converts Postman/OpenAPI into request models. RestAssured generates test classes."
+}
