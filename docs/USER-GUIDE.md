@@ -19,7 +19,7 @@
 10. [Locator Strategy — Which to Choose](#10-locator-strategy--which-to-choose)
 11. [Generating BDD Tests](#11-generating-bdd-tests)
 12. [Running Tests & Viewing Reports](#12-running-tests--viewing-reports)
-13. [Configuring Plugins](#13-configuring-plugins)
+13. [Configuring Plugins & Pushing to GitHub](#13-configuring-plugins)
 14. [Switching Kits](#14-switching-kits)
 15. [Troubleshooting & FAQ](#15-troubleshooting--faq)
 
@@ -94,7 +94,28 @@ cat kit.config.json
 You should see `"id": "kit-u1"` and `"projectName": "playwright-greenfieldproject"`. This is the
 active kit. If you need a different kit, see §14.
 
-### Step 4 — Check the snapshots directory (optional)
+### Step 4 — Run `/setup-kit` ⬅ REQUIRED before first use
+
+> **This step is mandatory.** `/setup-kit` scaffolds the output project folder, installs
+> Playwright and all dependencies, and validates the kit configuration. Nothing else works
+> until this has been run at least once on a new machine or a fresh clone.
+
+Open Claude Code (see §4) and type in the chat:
+
+```
+/setup-kit
+```
+
+What it does:
+- Creates `outputs/playwright-greenfieldproject/` with the full folder structure
+- Writes `playwright.config.ts`, `package.json`, `tsconfig.json`
+- Runs `npm install` and `npx playwright install chromium`
+- Confirms the kit is ready: `"Kit kit-u1 scaffolded successfully"`
+
+You only need to run `/setup-kit` **once per machine / per fresh clone**. After that, go
+straight to `/generate-tests` for all subsequent work.
+
+### Step 5 — Check the snapshots directory (optional)
 
 If your team has provided HTML snapshots of the application:
 
@@ -189,13 +210,26 @@ automation-kit/
 This walkthrough generates a login test for `practice.expandtesting.com` — no DOM snapshot
 required (AI-guided mode).
 
-### Step 1 — Open Claude Code and confirm the kit
+> **Before you begin**: If this is a fresh clone or a new machine, you must run `/setup-kit`
+> first (§3 Step 4). If you have already done that, skip straight to Step 2 below.
+
+### Step 1 — Run `/setup-kit` (first time only)
+
+In the Claude Code chat:
+
+```
+/setup-kit
+```
+
+Wait for: `"Kit kit-u1 scaffolded successfully"` — then continue.
+
+### Step 2 — Open Claude Code and confirm the kit
 
 ```
 Active kit: kit-u1 | playwright | nonbdd
 ```
 
-### Step 2 — Run the generate command
+### Step 3 — Run the generate command
 
 In the Claude Code chat, type:
 
@@ -214,7 +248,7 @@ Steps:
   - No error messages are displayed"
 ```
 
-### Step 3 — Watch the pipeline run
+### Step 4 — Watch the pipeline run
 
 Claude Code will:
 1. Parse your test case (intake-agent)
@@ -225,7 +259,7 @@ Claude Code will:
 
 You will see a summary table at the end listing all created files.
 
-### Step 4 — Install generated project dependencies
+### Step 5 — Install generated project dependencies
 
 ```bash
 cd outputs/playwright-greenfieldproject
@@ -233,13 +267,13 @@ npm install
 npx playwright install chromium
 ```
 
-### Step 5 — Run the tests
+### Step 6 — Run the tests
 
 ```bash
 npx playwright test
 ```
 
-### Step 6 — View the report
+### Step 7 — View the report
 
 ```bash
 npx playwright show-report
@@ -741,19 +775,122 @@ plugins:
 | `jira` | Before generation + after `/run-smoke` | Fetches test cases from Jira; pushes results back |
 | `allureServer` | After `/run-smoke` | Publishes Allure results to a shared Allure server |
 
-### GitHub plugin — first-time setup
+### GitHub plugin — push generated project to a repo
 
-The GitHub plugin requires git MCP to be configured with your token:
+Use this to push the generated `outputs/<project>/` folder to a GitHub repository without
+running any git commands manually.
 
-1. Generate a GitHub Personal Access Token (PAT) with `repo` scope
-2. Add to your shell profile:
-   ```bash
-   export GITHUB_TOKEN="ghp_..."
-   ```
-3. Enable the plugin in `configs/integrations.yml`
+#### Step 1 — Generate a GitHub Personal Access Token (PAT)
 
-After enabling, any `/generate-tests` run will automatically commit and optionally PR the
-generated artifacts.
+1. Go to GitHub → **Settings** → **Developer settings** → **Personal access tokens** → **Tokens (classic)**
+2. Click **Generate new token**
+3. Select scope: **repo** (full control of private repositories)
+4. Copy the token — you will not see it again
+
+#### Step 2 — Set environment variables
+
+Open a **Command Prompt or PowerShell** window and set these before launching Claude Code:
+
+**Windows Command Prompt:**
+```cmd
+set GITHUB_OWNER=your-github-username
+set GITHUB_REPO=your-repo-name
+set GITHUB_TOKEN=ghp_your_token_here
+```
+
+**Windows PowerShell:**
+```powershell
+$env:GITHUB_OWNER = "your-github-username"
+$env:GITHUB_REPO  = "your-repo-name"
+$env:GITHUB_TOKEN = "ghp_your_token_here"
+```
+
+**macOS / Linux:**
+```bash
+export GITHUB_OWNER="your-github-username"
+export GITHUB_REPO="your-repo-name"
+export GITHUB_TOKEN="ghp_your_token_here"
+```
+
+> Set these in the **same terminal session** you will use to launch Claude Code.
+> Environment variables set in one window are NOT inherited by other windows.
+
+#### Step 3 — Enable the plugin in `configs/integrations.yml`
+
+```yaml
+github:
+  enabled: true                          # change false → true
+  repoOwner: ${GITHUB_OWNER}             # do NOT hardcode — uses env var
+  repoName:  ${GITHUB_REPO}              # do NOT hardcode — uses env var
+  token:     ${GITHUB_TOKEN}             # do NOT hardcode — uses env var
+  createPr:  true                        # set false if you just want a push, no PR
+  prBaseBranch: main
+  commitMessage: "feat: generated kit-u1 test artifacts"
+```
+
+#### Step 4 — Launch Claude Code from the same terminal
+
+```cmd
+cd c:\Users\<you>\automation-kit
+claude
+```
+
+#### Step 5 — Trigger the push in the Claude Code chat
+
+```
+Please follow plugins/github.md to push the playwright-greenfieldproject to GitHub.
+```
+
+The plugin will:
+1. `git init` inside `outputs/playwright-greenfieldproject/`
+2. Stage all generated files (`git add .`)
+3. Commit with the configured commit message
+4. Add your GitHub repo as remote origin
+5. Push to `main`
+6. Create a Pull Request if `createPr: true`
+
+#### Avoid permission prompts
+
+By default Claude Code asks for approval on every git and shell command. To pre-approve
+all GitHub plugin operations, the following entries must be present in `.claude/settings.json`
+under `permissions.allow` (they are already added if you are using this kit):
+
+```json
+"Bash(git init*)",
+"Bash(git add *)",
+"Bash(git commit *)",
+"Bash(git remote *)",
+"Bash(git branch *)",
+"Bash(git push *)",
+"Bash(gh pr create*)",
+"mcp__git__git_push",
+"mcp__git__git_remote",
+"mcp__git__git_branch"
+```
+
+> Force-push commands (`git push --force`, `git push -f`) remain in the **deny** list and
+> will always prompt — this is intentional for safety.
+
+#### What gets pushed / excluded
+
+| Pushed | Excluded (add to `.gitignore`) |
+|---|---|
+| `src/pages/*.ts` | `node_modules/` |
+| `tests/nonbdd/*.spec.ts` | `allure-results/`, `allure-report/` |
+| `tests/bdd/` (if generated) | `playwright-report/`, `test-results/` |
+| `playwright.config.ts` | `cucumber.json` |
+| `package.json`, `tsconfig.json` | |
+| `selectors.json`, `intake.summary.json` | |
+
+#### After cloning the pushed repo
+
+Anyone who clones the repo runs:
+
+```bash
+npm install
+npx playwright install chromium
+npx playwright test
+```
 
 ---
 
