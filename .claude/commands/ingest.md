@@ -3,7 +3,7 @@
 Classifies, validates, and structures all user-provided inputs before any generation begins.
 Produces `intake.summary.json` — the single source of truth consumed by all other agents.
 
-Automatically called as **Step 0** inside `/generate-tests`. Also run standalone to preview
+Automatically called as **Step 0** inside `/generate-automation-tests`. Also run standalone to preview
 how inputs will be classified before committing to full generation.
 
 ## Arguments

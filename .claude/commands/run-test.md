@@ -19,7 +19,7 @@ and attaches a pass/fail summary with failure details directly to the response.
 2. **Confirm project is ready**:
    - Check that `outputs/<project>/playwright.config.ts` or equivalent exists
    - Check that at least one test file exists (`tests/nonbdd/*.spec.ts` or `tests/bdd/*.feature`)
-   - If not: "No tests found. Run `/generate-tests` first."
+   - If not: "No tests found. Run `/generate-automation-tests` first."
 
 3. **Run tests** (skip if `--report-only`):
 

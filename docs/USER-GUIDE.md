@@ -27,13 +27,21 @@
 
 ## 1. What Is This Kit?
 
-The Automation Kit is an AI-powered test automation scaffold that turns your test cases and
-application pages into production-ready Playwright TypeScript tests — including Page Object
-Models, spec files, BDD feature files, and CI pipelines(TBD).
+The Automation Kit is an AI-powered test automation scaffold that accepts either **user stories**
+or **ready-made test cases** and generates production-ready Playwright TypeScript tests — including
+manual TC documents, Page Object Models, spec files, BDD feature files, and CI pipelines.
 
-You describe **what** to test. The kit figures out **how** to test it.
+You describe **what** to test (or provide a user story). The kit figures out **how** to test it.
+
+**Two input paths:**
+
+| Input | Command | Output |
+|-------|---------|--------|
+| User story (`.md`, `.txt`, `.pdf`, `.yml`) | `/gen-manual-tests` or `/e2e` | Manual TCs (BDD `.feature` or non-BDD `.md`) → optionally automation artifacts |
+| Test cases / scenarios | `/generate-automation-tests` | Automation artifacts directly |
 
 **What gets generated for you:**
+- `manual-tests/manual-tcs/` — Manual test case documents (BDD or non-BDD format)
 - `src/pages/` — Page Object Model (POM) classes with correct locators
 - `tests/nonbdd/` — Playwright `test()` spec files
 - `tests/bdd/` — Gherkin `.feature` files + step definitions (optional)
@@ -113,7 +121,7 @@ What it does:
 - Confirms the kit is ready: `"Kit kit-u1 scaffolded successfully"`
 
 You only need to run `/setup-kit` **once per machine / per fresh clone**. After that, go
-straight to `/generate-tests` for all subsequent work.
+straight to `/generate-automation-tests` for all subsequent work.
 
 ### Step 5 — Check the snapshots directory (optional)
 
@@ -187,12 +195,19 @@ automation-kit/
 │   └── kit-u1/                   ← Playwright TypeScript kit
 │       ├── KIT.md                ← Kit-specific naming rules
 │       └── templates/            ← Code templates
+├── manual-testing/               ← User story → manual TC pipeline (kit-independent)
+│   ├── agents/                   ← Orchestration, analysis, and specialist agents
+│   ├── skills/                   ← user-story-parser, tc-formatter-bdd, tc-formatter-nonbdd
+│   └── rules/                    ← Manual TC quality rules
 ├── snapshots/                    ← PUT YOUR HTML SNAPSHOTS HERE
 ├── configs/
 │   └── integrations.yml          ← Plugin configuration (Jira, GitHub, Allure Server)
 ├── outputs/
 │   └── playwright-greenfieldproject/   ← All generated files go here
-│       ├── intake.summary.json   ← Input classification (auto-generated)
+│       ├── manual-tests/         ← Manual TC pipeline output (Input Type 1)
+│       │   ├── manual-tcs/bdd/   ← Final BDD .feature manual TCs
+│       │   └── manual-tcs/nonbdd/ ← Final non-BDD TC documents
+│       ├── intake.summary.json   ← Input classification (automation pipeline)
 │       ├── selectors.json        ← Selector map (auto-generated)
 │       ├── src/pages/            ← Page Object Model classes
 │       ├── tests/nonbdd/         ← Playwright spec files
@@ -234,7 +249,7 @@ Active kit: kit-u1 | playwright | nonbdd
 In the Claude Code chat, type:
 
 ```
-/generate-tests --cases "TC-01: Successful Login (Happy Path)
+/generate-automation-tests --cases "TC-01: Successful Login (Happy Path)
 Area: Authentication
 Preconditions: User account is available at practice.expandtesting.com
 Steps:
@@ -288,31 +303,105 @@ A browser window opens showing the Playwright HTML report.
 All commands are typed in the Claude Code chat panel. Commands starting with `/` are **slash
 commands** that trigger automated generation pipelines.
 
-### `/generate-tests` — Main generation command
+### Command Overview
 
-Generates the full artifact set: locators → POMs → specs → (optionally) BDD.
+| Command | Input | Output |
+|---------|-------|--------|
+| `/gen-manual-tests` | User story | Manual TCs only (BDD `.feature` or non-BDD `.md`) |
+| `/e2e` | User story | Manual TCs + automation artifacts |
+| `/generate-automation-tests` | Test cases or user story | Automation artifacts (POMs + specs) |
+| `/gen-bdd` | Test cases | BDD feature + step files only |
+| `/add-test` | Test case | Single new spec added to existing project |
+| `/generate-locators` | URL or DOM | `selectors.json` only |
+| `/generate-page-objects` | `selectors.json` | POM files only |
+| `/ingest` | Any input | `intake.summary.json` only |
+| `/run-smoke` | — | Runs `@smoke` tests + report |
+| `/run-test` | — | Runs specific test file |
+| `/setup-kit` | — | Scaffolds project structure |
+| `/setup-reporting` | — | Configures Allure reporting |
+| `/setup-ci` | — | Generates GitHub Actions CI |
+| `/validate-kit` | — | TypeScript + test discovery check |
+| `/gen-data` | — | Generates test data fixtures |
+
+---
+
+### `/gen-manual-tests` — Generate manual test cases from a user story
+
+Runs the full 5-phase pipeline: analyze → generate → evaluate → gap-fill → format.
+**Does NOT generate automation artifacts.** Use `/e2e` if you also need automation.
 
 ```bash
-# AI-guided (no DOM, no live URL) — test cases only
-/generate-tests --cases "TC-01: ..."
+# Full workflow — BDD feature files (style from kit.config.json)
+/gen-manual-tests --story user-stories/checkout.md
 
-# DOM snapshot(s) — pass a directory, all .html files are discovered
-/generate-tests --dom snapshots/ --cases "TC-01: ..."
+# Non-BDD format (TC-ID / Steps / Expected Results)
+/gen-manual-tests --story user-stories/login.md --style nonbdd
 
-# Single DOM file
-/generate-tests --dom snapshots/loginPage.html --cases "TC-01: ..."
+# Both BDD and non-BDD
+/gen-manual-tests --story user-stories/payment.md --style both
 
-# Live URL (most accurate locators — requires browser MCP)
-/generate-tests --url https://myapp.com/login --cases "TC-01: ..."
+# Quick mode (skip quality evaluation)
+/gen-manual-tests --story user-stories/auth.md --mode 2
 
-# Include BDD feature + step files in addition to specs
-/generate-tests --dom snapshots/ --cases "TC-01: ..." --bdd
+# Specific test types only
+/gen-manual-tests --story user-stories/auth.md --types positive,negative,security
+
+# Preview what would be generated
+/gen-manual-tests --story user-stories/checkout.md --dry-run
+```
+
+**Supported input formats for `--story`**: `.md`, `.txt`, `.pdf`, `.yml`/`.yaml`, or inline text.
+
+**Output location**: `outputs/<project>/manual-tests/manual-tcs/`
+
+---
+
+### `/e2e` — Full pipeline: user story → manual TCs → automation
+
+Runs the manual TC pipeline first, then feeds the formatted TCs into the automation pipeline.
+
+```bash
+# Full pipeline (manual TCs + automation)
+/e2e --story user-stories/checkout.md --url https://app.example.com
+
+# Manual TCs only (skip automation)
+/e2e --story user-stories/checkout.md --skip-automation
+
+# Both BDD and non-BDD formats
+/e2e --story user-stories/login.md --style both --url https://app.example.com
+
+# Inline user story
+/e2e --story "As a shopper I want to add items to cart so that I can purchase them" --skip-automation
+
+# Quick mode + preview
+/e2e --story user-stories/checkout.md --mode 2 --dry-run
+```
+
+**Supported input formats for `--story`**: `.md`, `.txt`, `.pdf`, `.yml`/`.yaml`, or inline text.
+
+---
+
+### `/generate-automation-tests` — Generate automation artifacts
+
+Generates the full artifact set: locators → POMs → specs → (optionally) BDD.
+Accepts either **test cases** (`--cases`) or a **user story** (`--story`).
+
+```bash
+# Input Type 2 — test cases directly
+/generate-automation-tests --cases "TC-01: ..."
+/generate-automation-tests --dom snapshots/ --cases "TC-01: ..."
+/generate-automation-tests --url https://myapp.com/login --cases "TC-01: ..."
+/generate-automation-tests --cases path/to/testcases.md --tags smoke
+
+# Input Type 1 — user story first, then automation (quick mode, no evaluation)
+/generate-automation-tests --story user-stories/checkout.md --url https://app.example.com
+/generate-automation-tests --story user-stories/login.md --style both --dom snapshots/
+
+# Include BDD feature + step files
+/generate-automation-tests --dom snapshots/ --cases "TC-01: ..." --bdd
 
 # Preview files without writing anything
-/generate-tests --dom snapshots/ --cases "TC-01: ..." --dry-run
-
-# Only generate smoke-tagged tests
-/generate-tests --cases path/to/testcases.md --tags smoke
+/generate-automation-tests --dom snapshots/ --cases "TC-01: ..." --dry-run
 ```
 
 **What gets generated:**
@@ -477,7 +566,7 @@ The rule: strip the extension, convert kebab/snake to PascalCase.
 Put all snapshot files in `snapshots/` and pass the directory:
 
 ```bash
-/generate-tests --dom snapshots/ --cases "TC-01: ..."
+/generate-automation-tests --dom snapshots/ --cases "TC-01: ..."
 ```
 
 The kit discovers all `.html` files, generates one POM per page, and wires page transitions
@@ -513,7 +602,7 @@ The kit detects the transition at step 3 and generates `waitForURL()` at that po
 Pass test cases directly in the command:
 
 ```bash
-/generate-tests --cases "TC-01: Login with valid credentials
+/generate-automation-tests --cases "TC-01: Login with valid credentials
 Steps:
   1. Navigate to /login
   2. Enter valid username
@@ -529,7 +618,7 @@ Steps:
 Save test cases in a markdown file and pass the path:
 
 ```bash
-/generate-tests --cases tests/test-cases.md
+/generate-automation-tests --cases tests/test-cases.md
 ```
 
 **File format (`tests/test-cases.md`):**
@@ -572,7 +661,7 @@ Preconditions: User account exists
 List all test cases in the same markdown file — the kit generates one spec per test case.
 
 ```bash
-/generate-tests --dom snapshots/ --cases tests/test-cases.md --tags smoke
+/generate-automation-tests --dom snapshots/ --cases tests/test-cases.md --tags smoke
 ```
 
 ---
@@ -586,7 +675,7 @@ The kit uses three strategies in priority order. Choose the highest tier availab
 **When to use**: You have a running application accessible via URL.
 
 ```bash
-/generate-tests --url https://staging.myapp.com/login --cases "TC-01: ..."
+/generate-automation-tests --url https://staging.myapp.com/login --cases "TC-01: ..."
 ```
 
 - Playwright MCP opens a real browser, extracts actual DOM elements
@@ -600,7 +689,7 @@ The kit uses three strategies in priority order. Choose the highest tier availab
 **When to use**: You have `.html` files from the application but no live URL.
 
 ```bash
-/generate-tests --dom snapshots/ --cases "TC-01: ..."
+/generate-automation-tests --dom snapshots/ --cases "TC-01: ..."
 ```
 
 - Kit parses real HTML to extract `data-testid`, `aria-label`, `id`, `name`, `role`
@@ -612,7 +701,7 @@ The kit uses three strategies in priority order. Choose the highest tier availab
 **When to use**: No URL and no snapshots — test cases only.
 
 ```bash
-/generate-tests --cases "TC-01: ..."
+/generate-automation-tests --cases "TC-01: ..."
 ```
 
 - AI infers selectors from step wording (e.g., "Enter username" → `getByLabel('Username')`)
@@ -642,7 +731,7 @@ BDD (Behavior-Driven Development) artifacts consist of:
 ### Force BDD generation
 
 ```bash
-/generate-tests --dom snapshots/ --cases "TC-01: ..." --bdd
+/generate-automation-tests --dom snapshots/ --cases "TC-01: ..." --bdd
 ```
 
 ### BDD only (no spec)
@@ -964,7 +1053,7 @@ If the list is empty, check `testDir` in `playwright.config.ts` and ensure spec 
 **Fix**:
 1. Run in headed mode: `npx playwright test --headed`
 2. Take DOM snapshots of the failing pages (see §8)
-3. Re-run: `/generate-tests --dom snapshots/ --cases "TC-01: ..."`
+3. Re-run: `/generate-automation-tests --dom snapshots/ --cases "TC-01: ..."`
 4. The kit will regenerate POMs with confirmed selectors
 
 ---
@@ -1013,7 +1102,7 @@ The kit asks before overwriting existing files. If you want to regenerate cleanl
 1. Delete the specific `.ts` file
 2. Re-run `/generate-page-objects`
 
-If you want to keep manual changes: **do not delete** the file. Run `/generate-tests --dry-run`
+If you want to keep manual changes: **do not delete** the file. Run `/generate-automation-tests --dry-run`
 first to preview what would change.
 
 ---
@@ -1065,7 +1154,7 @@ The project name is set in `kit.config.json` under `"projectName"`. Default is
 # Delete all generated files for the current project
 rm -rf outputs/playwright-greenfieldproject/
 
-# Then re-run any /generate-tests command
+# Then re-run any /generate-automation-tests command
 ```
 
 The kit will regenerate everything from scratch.

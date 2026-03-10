@@ -32,7 +32,7 @@ Initialize a new automation project by selecting a kit and scaffolding the full 
 
 6. **Confirm completion**
    - List all created files and directories
-   - Show the user the next suggested command: `/generate-tests`
+   - Show the user the next suggested command: `/generate-automation-tests`
 
 ## Notes
 - Never overwrite existing source files without explicit user confirmation

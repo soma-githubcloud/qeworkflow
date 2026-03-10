@@ -112,7 +112,7 @@ Must exit with code 0. If errors exist, fix them before reporting completion.
 ### Step 5: Report
 - List all created files and directories
 - Confirm `node_modules/` is installed
-- Show first command to run: `/generate-tests`
+- Show first command to run: `/generate-automation-tests`
 
 ---
 

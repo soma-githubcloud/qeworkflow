@@ -33,7 +33,7 @@ Kit-U1 = CLAUDE.md orchestrator
 
 ## 3. End-to-End Flow
 
-The primary workflow is `/generate-tests`. Every other command is a focused subset of it.
+The primary workflow is `/generate-automation-tests`. Every other command is a focused subset of it.
 
 ```
 User Input (URL / DOM snapshot / test cases)
@@ -141,7 +141,7 @@ User Input (URL / DOM snapshot / test cases)
 |---|---|---|
 | `/setup-kit` | — | Bootstrap project; write configs, install deps, verify compile |
 | `/ingest` | `--url --dom --cases` | Standalone input classification — preview `intake.summary.json` |
-| `/generate-tests` | `--url --cases --dom --bdd --tags --dry-run` | **Primary**: full pipeline (Steps 0–4) |
+| `/generate-automation-tests` | `--url --cases --dom --bdd --tags --dry-run` | **Primary**: full pipeline (Steps 0–4) |
 | `/generate-locators` | `--mode mcp\|dom\|ai` | Extract selectors only → `selectors.json` + lint report |
 | `/generate-page-objects` | — | POMs from existing `selectors.json` (skips locator step) |
 | `/gen-bdd` | `--cases --style strict\|relaxed --tags --dry-run` | BDD-only: feature + steps from test cases |

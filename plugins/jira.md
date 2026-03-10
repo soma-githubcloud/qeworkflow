@@ -9,7 +9,7 @@ When `importTestCases: true`:
 1. Connect to Jira REST API: `GET /rest/api/3/search?jql=project=<projectKey> AND issuetype=Test`
 2. Extract: issue key (→ TC-ID), summary (→ title), description (→ steps), acceptance criteria (→ expectedResults)
 3. Map to the `intake.summary.json` test case schema
-4. Feed into the normal `/ingest` → `/generate-tests` pipeline
+4. Feed into the normal `/ingest` → `/generate-automation-tests` pipeline
 
 ### Push Execution Results (`/run-smoke` integration)
 When `pushResults: true` and `/run-smoke` completes:

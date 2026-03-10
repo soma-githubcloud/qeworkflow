@@ -34,4 +34,4 @@ Run this after `/generate-locators` or when you have an existing `locators.json`
 
 6. **Summary**
    - List all created/updated POM files with line counts
-   - Suggest: "Run `/generate-tests` to create test specs using these page objects."
+   - Suggest: "Run `/generate-automation-tests` to create test specs using these page objects."

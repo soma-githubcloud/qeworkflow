@@ -5,7 +5,7 @@
 ## Capabilities
 
 ### Auto-Commit Generated Artifacts
-After any generation command completes (`/generate-tests`, `/gen-bdd`, etc.), if this plugin
+After any generation command completes (`/generate-automation-tests`, `/gen-bdd`, etc.), if this plugin
 is enabled, use the **git MCP** to:
 1. `git add outputs/<projectName>/` — stage all generated files
 2. `git commit -m "<commitMessage from config>"` — commit with configured message

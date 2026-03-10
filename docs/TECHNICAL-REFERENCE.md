@@ -14,6 +14,7 @@
 5. [settings.json — MCP Servers, Permissions & Hooks](#5-settingsjson--mcp-servers-permissions--hooks)
 6. [Tools Used](#6-tools-used)
 7. [Base Agents](#7-base-agents)
+7b. [Manual Testing Module](#7b-manual-testing-module)
 8. [Skills](#8-skills)
 9. [Kit Configuration (kit.config.json)](#9-kit-configuration-kitconfigjson)
 10. [Output Structure](#10-output-structure)
@@ -26,37 +27,55 @@
 
 ## 1. Architecture Overview
 
-The Automation Kit is an AI-driven test generation system built on top of **Claude Code**. It uses
-a layered architecture:
+The Automation Kit is an AI-driven test generation system built on top of **Claude Code**. It
+supports two input paths:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  User Input (URL / DOM snapshots / Test case text)       │
-└────────────────────────┬────────────────────────────────┘
-                         │
-┌────────────────────────▼────────────────────────────────┐
-│  CLAUDE.md  —  Orchestrator                              │
-│  Reads kit config, routes commands to agents             │
-└────────────────────────┬────────────────────────────────┘
-                         │
-        ┌────────────────┼────────────────┐
-        ▼                ▼                ▼
-   intake-agent    locator-agent      pom-agent
-   (Step 0,        (Tier 1/2/3)       (POM classes)
+┌──────────────────────────────────┐   ┌─────────────────────────────────┐
+│  Input Type 1: User Story        │   │  Input Type 2: Test Cases        │
+│  (.md / .txt / .pdf / .yml)      │   │  (inline text / .md file)        │
+└───────────────┬──────────────────┘   └──────────────┬──────────────────┘
+                │                                      │
+                ▼                                      │
+   user-story-parser skill                             │
+                │                                      │
+                ▼                                      │
+   quality-master-orchestrator                         │
+   ├─ user-story-analyzer                              │
+   ├─ quality-orchestrator                             │
+   │   └─ 8 specialist agents                          │
+   ├─ quality-evaluator (mode 1)                       │
+   └─ gap-filler (mode 1)                              │
+                │                                      │
+                ▼                                      │
+   tc-formatter-bdd / tc-formatter-nonbdd              │
+   (manual-tcs/ — final deliverable)                   │
+                │ (when automation requested)          │
+                └──────────────┬───────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────┐
+│  CLAUDE.md  —  Orchestrator                           │
+│  Reads kit config, routes to automation agents        │
+└──────────────────────────────────────────────────────┘
+                               │
+        ┌──────────────────────┼──────────────────────┐
+        ▼                      ▼                       ▼
+   intake-agent          locator-agent            pom-agent
+   (Step 0,              (Tier 1/2/3)             (POM classes)
     always first)
-        │                                 │
-        └────────────────┬────────────────┘
-                         ▼
-              testgen-agent / bdd-agent
-              (spec files / feature+steps)
-                         │
-                         ▼
-                  reporting-agent
-                  (playwright.config.ts)
+        │                                              │
+        └──────────────────────┬───────────────────────┘
+                               ▼
+                  testgen-agent / bdd-agent
+                  (spec files / feature+steps)
+                               │
+                               ▼
+                        reporting-agent
+                        (playwright.config.ts)
 ```
 
-All agents communicate through **`intake.summary.json`** — a structured contract written by the
-intake-agent and consumed by all downstream agents. No agent skips intake.
+All automation agents communicate through **`intake.summary.json`** — written by intake-agent,
+consumed by all downstream agents. No automation agent skips intake.
 
 ---
 
@@ -87,11 +106,21 @@ Every session begins with:
 
 ### 2.3 Agent Dispatch Table
 
+**Input Type 1 — User Story → Manual TCs → (optional) Automation:**
+
+| Slash Command | Agents / Skills Invoked |
+|---|---|
+| `/gen-manual-tests` | user-story-parser skill → quality-master-orchestrator → quality-orchestrator → 8 specialist agents → quality-evaluator → gap-filler → tc-formatter skill |
+| `/e2e` | [same as above] → intake-agent → locator-agent → pom-agent → testgen/bdd-agent → reporting-agent |
+| `/generate-automation-tests --story` | user-story-parser → quality-orchestrator (mode 2, no eval) → tc-formatter → intake-agent → locator-agent → pom-agent → testgen/bdd-agent |
+
+**Input Type 2 — Test Cases → Automation (original behavior, unchanged):**
+
 | Slash Command | Agents Spawned (in order) |
 |---|---|
 | `/setup-kit` | scaffolder-agent |
 | `/ingest` | intake-agent only |
-| `/generate-tests` | intake-agent → locator-agent → pom-agent → testgen-agent or bdd-agent → reporting-agent |
+| `/generate-automation-tests --cases` | intake-agent → locator-agent → pom-agent → testgen-agent or bdd-agent → reporting-agent |
 | `/generate-locators` | locator-agent only |
 | `/generate-page-objects` | pom-agent (reads existing selectors.json) |
 | `/gen-bdd` | intake-agent → bdd-agent |
@@ -131,21 +160,65 @@ After intake completes, `testStyle` is read from `intake.summary.json`:
 
 All commands live in `.claude/commands/`. They are invoked as `/command-name [args]`.
 
-### `/generate-tests`
-**File**: `.claude/commands/generate-tests.md`
-**Purpose**: Full pipeline — from inputs to runnable test artifacts.
+### `/gen-manual-tests`
+**File**: `.claude/commands/gen-manual-tests.md`
+**Purpose**: User story → manual test case documents (BDD `.feature` or non-BDD `.md`). Does NOT touch the automation pipeline.
 
 | Argument | Description |
 |---|---|
+| `--story <path\|inline>` | User story file (`.md`, `.txt`, `.pdf`, `.yml`) or inline text |
+| `--style bdd\|nonbdd\|both` | Output format (default: from kit.config.json) |
+| `--types <list>` | Comma-separated specialist types (default: auto from analyzer) |
+| `--mode 1\|2\|3\|4` | Pipeline mode (1=full with eval, 2=generation only, 3=re-evaluate existing, 4=single phase) |
+| `--project <name>` | Override project name |
+| `--dry-run` | Preview without writing |
+
+**Pipeline**: user-story-parser → quality-master-orchestrator (Phases 0–3) → tc-formatter → quality lint → summary
+
+**Output**: `outputs/<project>/manual-tests/manual-tcs/bdd/` and/or `outputs/<project>/manual-tests/manual-tcs/nonbdd/`
+
+---
+
+### `/e2e`
+**File**: `.claude/commands/e2e.md`
+**Purpose**: Full end-to-end: user story → manual TCs → automation artifacts.
+
+| Argument | Description |
+|---|---|
+| `--story <path\|inline>` | User story file (`.md`, `.txt`, `.pdf`, `.yml`) or inline text |
+| `--style bdd\|nonbdd\|both` | TC format + automation test style |
+| `--url <url>` | Live app URL for Tier-1 locator extraction |
+| `--dom <path>` | DOM snapshot directory/file for Tier-2 locator extraction |
+| `--types <list>` | Specialist types to run |
+| `--mode 1\|2\|3\|4` | Orchestrator mode |
+| `--skip-automation` | Stop after manual TCs — skip automation pipeline |
+| `--project <name>` | Override project name |
+| `--dry-run` | Preview without writing |
+
+**Pipeline**: user-story-parser → quality-master-orchestrator → tc-formatter → [intake-agent → locator-agent → pom-agent → testgen/bdd-agent → reporting-agent] → validate → summary
+
+---
+
+### `/generate-automation-tests`
+**File**: `.claude/commands/generate-automation-tests.md`
+**Purpose**: Full automation pipeline — from inputs to runnable test artifacts. Accepts `--cases` (Input Type 2) or `--story` (Input Type 1, quick mode).
+
+| Argument | Description |
+|---|---|
+| `--story <path\|inline>` | Input Type 1: user story (runs manual TC pipeline first, mode 2) |
+| `--cases <path\|inline>` | Input Type 2: test case text or file path |
 | `--url <url>` | Live app URL (Playwright MCP strategy) |
 | `--dom <path>` | Directory of `.html` snapshots OR single file |
-| `--cases <path\|inline>` | Test case text or file path |
 | `--bdd` | Force BDD output (overrides strategy default) |
+| `--story-mode 1\|2` | When `--story` used: orchestrator mode (default: 2) |
+| `--style bdd\|nonbdd\|both` | When `--story` used: manual TC format + test style |
 | `--project <name>` | Override project name |
 | `--dry-run` | Preview without writing |
 | `--tags <tag,...>` | Only generate for matching tags |
 
-**Pipeline**: Load context → Resolve domFiles → intake-agent → locator-agent → pom-agent → testgen/bdd-agent → reporting-agent → tsc validate → summary
+**`--story` and `--cases`** are mutually exclusive. `--story` takes precedence.
+
+**Pipeline**: Load context → [user-story-parser → tc-formatter if `--story`] → Resolve domFiles → intake-agent → locator-agent → pom-agent → testgen/bdd-agent → reporting-agent → tsc validate → summary
 
 **`--dom` directory scanning**: When a directory path is passed, all `*.html` files are auto-discovered and sorted alphabetically. Page names are inferred from filenames using `inferPageName()` (kebab/snake → PascalCase).
 
@@ -425,6 +498,71 @@ For multi-page (Tier 2): filters test case steps by `step.pageContext` to focus 
 
 ---
 
+## 7b. Manual Testing Module
+
+The `manual-testing/` directory is a self-contained, kit-independent module. It handles all of
+Input Type 1 (user story → manual TCs). It does not depend on any kit files.
+
+```
+manual-testing/
+├── agents/
+│   ├── orchestration/
+│   │   ├── quality-master-orchestrator.agent.md  ← 5-phase coordinator; bridge to automation
+│   │   ├── quality-orchestrator.agent.md          ← coordinates 8 specialist agents
+│   │   └── quality-evaluator.agent.md             ← quality scoring + gap analysis
+│   ├── analysis/
+│   │   ├── user-story-analyzer.agent.md          ← test type applicability + confidence scoring
+│   │   └── gap-filler.agent.md                   ← fills auto-fillable coverage gaps
+│   └── specialists/
+│       ├── positive-scenarios.agent.md           ← happy path (3–7 scenarios)
+│       ├── negative-scenarios.agent.md           ← validation failures, error handling
+│       ├── edge-cases.agent.md                   ← boundary conditions, min/max values
+│       ├── integration-scenarios.agent.md        ← cross-component, names 2+ systems
+│       ├── security-scenarios.agent.md           ← OWASP Top 10, attack payloads
+│       ├── performance-scenarios.agent.md        ← only when explicit SLAs exist
+│       ├── api-scenarios.agent.md                ← REST contract, endpoints, status codes
+│       └── ui-scenarios.agent.md                 ← domain language, no raw selectors
+├── skills/
+│   ├── user-story-parser.md     ← parses 4 story formats → structured JSON
+│   ├── tc-formatter-bdd.md      ← raw Gherkin → tagged .feature files (kit rules applied)
+│   └── tc-formatter-nonbdd.md   ← raw Gherkin → TC-ID / Steps / Expected .md
+└── rules/
+    └── manual-tc-quality.md     ← universal and format-specific quality rules
+```
+
+### 5-Phase Workflow
+
+| Phase | Agent | Output dir | Mode |
+|-------|-------|-----------|------|
+| 0 | user-story-analyzer | `00-analysis/` | always |
+| 1 | quality-orchestrator + 8 specialists | `01-scenarios/` | always |
+| 2 | quality-evaluator | `02-evaluation/` | mode 1 only |
+| 3 | gap-filler | `03-gap-filled/` | mode 1, if gaps exist |
+| 4 | tc-formatter skill | `manual-tcs/` | always |
+
+### User Story Parser
+
+Parses 4 formats:
+- **Agile Standard**: `As a <role> / I want <goal> / So that <benefit>`
+- **Plain English**: `# Feature: X` + description paragraphs
+- **Structured Spec**: `## Feature` with `**User Story**`, `**Acceptance Criteria**` keys
+- **Inline / Mixed**: free-form text with roles, goals, criteria in any order
+
+Supported file types: `.md`, `.txt`, `.pdf`, `.yml`/`.yaml`.
+
+### TC Formatter Skills (Bridge to Automation)
+
+`tc-formatter-bdd.md`: applies kit tagging rules from `bdd-gherkin.md` — assigns `@TC-NNN`,
+`@ui`/`@api`, `@smoke`/`@regression`, `@module()`, `@negative`, `@boundary`. Merges Phase 1 + Phase 3 output.
+
+`tc-formatter-nonbdd.md`: converts Gherkin Given/When/Then → TC-ID tables with Preconditions,
+Steps, Expected Results. Groups TCs by type with reserved ID ranges (TC-001–019 positive, TC-020–039 negative, etc.).
+
+The formatted output in `manual-tcs/` is passed to `intake-agent` as `testCasesRaw` when
+`handoffToAutomation = true` (triggered by `/e2e` without `--skip-automation`).
+
+---
+
 ## 8. Skills
 
 Skills are reusable logic modules in `kits/_base/skills/`. Agents invoke them by reading the skill
@@ -554,6 +692,20 @@ Controls which test style is generated based on locator strategy:
 ```
 outputs/
 └── <projectName>/
+    ├── manual-tests/                ← Input Type 1 output (user story → manual TCs)
+    │   ├── 00-analysis/
+    │   │   └── test-type-analysis.json   ← Applicability scores for 8 test types
+    │   ├── 01-scenarios/            ← Raw Gherkin from specialist agents
+    │   ├── 02-evaluation/           ← Quality report + completeness-analysis.json (mode 1)
+    │   ├── 03-gap-filled/           ← Gap-filled scenarios (mode 1, if gaps found)
+    │   ├── manual-tcs/
+    │   │   ├── bdd/
+    │   │   │   ├── <featureSlug>.feature  ← Final tagged BDD manual TCs
+    │   │   │   └── TC-INDEX.md
+    │   │   └── nonbdd/
+    │   │       ├── <featureSlug>.md       ← TC-ID / Steps / Expected format
+    │   │       └── TC-INDEX.md
+    │   └── MASTER-REPORT.md
     ├── intake.summary.json          ← Step 0 output — input contract for all agents
     ├── selectors.json               ← Locator map (one top-level key per page)
     ├── selectors-lint.html          ← Selector quality report (flags score < 0.70)
@@ -568,9 +720,9 @@ outputs/
     │   └── fixtures/                ← Test data factories
     │       └── auth.fixtures.ts
     ├── tests/
-    │   ├── nonbdd/                  ← Playwright spec files
+    │   ├── nonbdd/                  ← Playwright spec files (automation)
     │   │   └── TC-01-successful-login.spec.ts
-    │   └── bdd/                     ← Feature files + step definitions
+    │   └── bdd/                     ← Feature files + step definitions (automation)
     │       ├── login.feature
     │       └── login.steps.ts
     └── configs/
