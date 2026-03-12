@@ -1,0 +1,33 @@
+{
+  "_schema": "automation-kit-base-v1",
+  "_description": "Default values inherited by all kits. Kit-specific configs override these.",
+  "mode": "greenfield",
+  "testStyle": "non-bdd",
+  "locatorStrategies": ["dom-based", "ai-guided"],
+  "reporting": ["allure"],
+  "outputDir": "./generated",
+  "projectName": "my-automation-project",
+  "namingConventions": {
+    "pageObjectSuffix": "Page",
+    "testClassSuffix": "Test",
+    "pomDir": "pages",
+    "testDir": "tests",
+    "featureFileDir": "features",
+    "stepsFileDir": "steps"
+  },
+  "inputs": {
+    "supported": ["test-cases"],
+    "locatorRequired": false
+  },
+  "agents": {
+    "locator": "./tc-to-automate/kits/_base/agents/locator-agent.md",
+    "testGenerator": "./tc-to-automate/kits/_base/agents/test-generator-agent.md",
+    "scaffolder": "./tc-to-automate/kits/_base/agents/scaffolder-agent.md",
+    "reporting": "./tc-to-automate/kits/_base/agents/reporting-agent.md"
+  },
+  "skills": {
+    "locatorStrategies": "./tc-to-automate/kits/_base/skills/locator-strategies.md",
+    "testCaseParser": "./tc-to-automate/kits/_base/skills/test-case-parser.md",
+    "templateRenderer": "./tc-to-automate/kits/_base/skills/template-renderer.md"
+  }
+}

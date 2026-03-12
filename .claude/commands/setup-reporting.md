@@ -19,7 +19,7 @@ Playwright HTML Reporter + Allure. Safe to re-run — idempotent.
    - Override with `--reporters` if provided
    - Validate: each reporter must be supported by the kit's tech stack
 
-3. **Spawn reporting-agent** (read `kits/_base/agents/reporting-agent.md`)
+3. **Spawn reporting-agent** (read `tc-to-automate/kits/_base/agents/reporting-agent.md`)
    - Pass: `reporters`, `kitConfig`, `projectPath: <outputDir>/<projectName>`, `reset`
    - Agent handles installation + config file updates
 

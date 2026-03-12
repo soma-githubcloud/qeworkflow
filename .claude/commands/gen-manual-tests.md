@@ -73,7 +73,7 @@ Resolve `--story` input using these rules:
 | File path that does not exist | Error: `"User story file not found at [path]"` |
 | Unrecognized extension | Attempt to read as plain text; warn if content looks binary |
 
-Apply `manual-testing/skills/user-story-parser.md`:
+Apply `story-to-testcase/skills/user-story-parser.md`:
 - Read resolved input text
 - Extract: `featureName`, `featureSlug`, `acceptanceCriteria`, `technicalContext`
 - Report: "User story: [featureName] | [N] acceptance criteria"
@@ -82,7 +82,7 @@ If `--mode 3` (evaluation only): skip Step 1 — scenarios already exist.
 
 ### Step 2: Run Master Orchestrator
 
-Read and execute `manual-testing/agents/orchestration/quality-master-orchestrator.agent.md`.
+Read and execute `story-to-testcase/agents/orchestration/quality-master-orchestrator.agent.md`.
 
 Pass:
 ```
@@ -109,19 +109,19 @@ Phases run by master orchestrator based on `--mode`:
 
 Apply TC formatter skills based on `testStyle`:
 
-**`testStyle` includes `"bdd"`** → apply `manual-testing/skills/tc-formatter-bdd.md`:
+**`testStyle` includes `"bdd"`** → apply `story-to-testcase/skills/tc-formatter-bdd.md`:
 - Merge Phase 1 + Phase 3 scenarios
 - Apply kit tagging rules (from `bdd-gherkin.md`)
 - Assign TC-NNN IDs
 - Save: `manual-tcs/bdd/<featureSlug>.feature` + `TC-INDEX.md`
 
-**`testStyle` includes `"nonbdd"`** → apply `manual-testing/skills/tc-formatter-nonbdd.md`:
+**`testStyle` includes `"nonbdd"`** → apply `story-to-testcase/skills/tc-formatter-nonbdd.md`:
 - Convert Gherkin → TC-ID / Steps / Expected format
 - Save: `manual-tcs/nonbdd/<featureSlug>.md` + `TC-INDEX.md`
 
 ### Step 4: Quality Lint (always)
 
-Apply rules from `manual-testing/rules/manual-tc-quality.md`:
+Apply rules from `story-to-testcase/rules/manual-tc-quality.md`:
 - Check all TCs have TC IDs
 - Check all BDD scenarios have required tags
 - Check expected results are specific (not vague)

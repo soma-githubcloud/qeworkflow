@@ -31,7 +31,7 @@ how inputs will be classified before committing to full generation.
    neither           → strategy = "ai-guided"
    ```
 
-4. **Spawn intake-agent** (read `kits/_base/agents/intake-agent.md`)
+4. **Spawn intake-agent** (read `tc-to-automate/kits/_base/agents/intake-agent.md`)
    - Pass: `appUrl`, `domFile`, `testCasesRaw`, `strategy`, `kitConfig`
    - Agent parses test cases using `test-case-parser` skill
    - Agent writes `intake.summary.json`

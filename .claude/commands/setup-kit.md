@@ -20,8 +20,8 @@ Initialize a new automation project by selecting a kit and scaffolding the full 
    - If the selected kit has `extends`, merge from parent kit config first
 
 4. **Load the kit's scaffolder agent**
-   - Read the agent file at `kits/<kit-id>/agents/framework-setup-agent.md` (greenfield kits)
-   - OR `kits/<kit-id>/agents/framework-analyzer-agent.md` (existing framework kits)
+   - Read the agent file at `tc-to-automate/kits/<kit-id>/agents/framework-setup-agent.md` (greenfield kits)
+   - OR `tc-to-automate/kits/<kit-id>/agents/framework-analyzer-agent.md` (existing framework kits)
    - Follow the agent instructions precisely
 
 5. **Verify scaffold**

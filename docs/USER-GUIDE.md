@@ -1,4 +1,4 @@
-# Automation Kit — User Guide
+# SQE (Synthetic Quality Engineer) — User Guide
 
 > **Who this guide is for**: Anyone cloning this repository and using the kit for the first time,
 > including users who have never installed Node.js, Playwright, or Claude Code.
@@ -27,7 +27,7 @@
 
 ## 1. What Is This Kit?
 
-The Automation Kit is an AI-powered test automation scaffold that accepts either **user stories**
+The SQE Kit is an AI-powered quality engineering scaffold that accepts either **user stories**
 or **ready-made test cases** and generates production-ready Playwright TypeScript tests — including
 manual TC documents, Page Object Models, spec files, BDD feature files, and CI pipelines.
 
@@ -128,7 +128,7 @@ straight to `/generate-automation-tests` for all subsequent work.
 If your team has provided HTML snapshots of the application:
 
 ```bash
-ls snapshots/
+ls inputs/snapshots/
 ```
 
 You should see `.html` files named after the pages they represent (e.g., `loginPage.html`,
@@ -189,17 +189,17 @@ If you do not see this line, ask Claude: _"What is the active kit?"_
 automation-kit/
 ├── kit.config.json               ← Active kit configuration (change this to switch kits)
 ├── CLAUDE.md                     ← Orchestrator rules (do not edit unless extending the kit)
-├── kits/
+├── tc-to-automate/kits/
 │   ├── _base/
 │   │   └── agents/               ← Shared AI agents (intake, locator, pom, testgen, bdd, etc.)
 │   └── kit-u1/                   ← Playwright TypeScript kit
 │       ├── KIT.md                ← Kit-specific naming rules
 │       └── templates/            ← Code templates
-├── manual-testing/               ← User story → manual TC pipeline (kit-independent)
+├── story-to-testcase/               ← User story → manual TC pipeline (kit-independent)
 │   ├── agents/                   ← Orchestration, analysis, and specialist agents
 │   ├── skills/                   ← user-story-parser, tc-formatter-bdd, tc-formatter-nonbdd
 │   └── rules/                    ← Manual TC quality rules
-├── snapshots/                    ← PUT YOUR HTML SNAPSHOTS HERE
+├── inputs/snapshots/                    ← PUT YOUR HTML SNAPSHOTS HERE
 ├── configs/
 │   └── integrations.yml          ← Plugin configuration (Jira, GitHub, Allure Server)
 ├── outputs/
@@ -307,6 +307,7 @@ commands** that trigger automated generation pipelines.
 
 | Command | Input | Output |
 |---------|-------|--------|
+| `/gen-user-stories` | Requirement doc (BRD, PRD, Feature Spec, image, etc.) | `US-NNN.md` user story files |
 | `/gen-manual-tests` | User story | Manual TCs only (BDD `.feature` or non-BDD `.md`) |
 | `/e2e` | User story | Manual TCs + automation artifacts |
 | `/generate-automation-tests` | Test cases or user story | Automation artifacts (POMs + specs) |
@@ -322,6 +323,60 @@ commands** that trigger automated generation pipelines.
 | `/setup-ci` | — | Generates GitHub Actions CI |
 | `/validate-kit` | — | TypeScript + test discovery check |
 | `/gen-data` | — | Generates test data fixtures |
+
+---
+
+### `/gen-user-stories` — Generate user stories from requirement documents
+
+The leftmost step in the quality pipeline. Accepts any requirement document and produces
+structured `US-NNN.md` user story files ready for `/gen-manual-tests` or `/e2e`.
+
+```bash
+# Single PDF (BRD or PRD)
+/gen-user-stories --req docs/requirements/prd-v2.pdf
+
+# Feature specification in markdown
+/gen-user-stories --req docs/features/checkout-feature.md --type feature
+
+# Multiple files combined into one analysis
+/gen-user-stories --req "docs/brd.pdf,docs/api-contract.yaml"
+
+# Entire requirements directory
+/gen-user-stories --req docs/requirements/
+
+# Word document (auto-converts via pandoc)
+/gen-user-stories --req docs/feature-spec.docx
+
+# Whiteboard photo or UX wireframe screenshot
+/gen-user-stories --req whiteboard-session.png --type meeting
+
+# Preview features without writing any files
+/gen-user-stories --req docs/prd.pdf --dry-run
+
+# Generate stories then immediately generate manual TCs for each
+/gen-user-stories --req docs/prd.pdf --then-manual-tests --style both
+
+# Full pipeline in one command: req → stories → manual TCs → automation
+/gen-user-stories --req docs/prd.pdf --then-e2e --url https://staging.myapp.com
+```
+
+**Supported file formats**:
+
+| Format | How it's read |
+|--------|--------------|
+| `.pdf`, `.md`, `.txt`, `.eml` | Native — no conversion |
+| `.yaml`, `.json`, `.xml`, `.bpmn`, `.csv` | Native — parsed as structured text |
+| `.png`, `.jpg` | Native — Claude analyses image visually (whiteboard, wireframe, scanned form) |
+| `.docx` | Converted via `pandoc` (auto-installed if missing) |
+| `.xlsx` | Converted via `pandas` (auto-installed if missing) |
+| `.fig` | Not supported — export as PDF or PNG from Figma first |
+
+**Output location**: `outputs/<project>/user-stories/`
+
+Each generated `US-NNN-<slug>.md` is self-contained and can be passed directly to:
+```bash
+/gen-manual-tests --story outputs/<project>/user-stories/US-001-<slug>.md
+```
 
 ---
 
@@ -389,19 +444,19 @@ Accepts either **test cases** (`--cases`) or a **user story** (`--story`).
 ```bash
 # Input Type 2 — test cases directly
 /generate-automation-tests --cases "TC-01: ..."
-/generate-automation-tests --dom snapshots/ --cases "TC-01: ..."
+/generate-automation-tests --dom inputs/snapshots/ --cases "TC-01: ..."
 /generate-automation-tests --url https://myapp.com/login --cases "TC-01: ..."
 /generate-automation-tests --cases path/to/testcases.md --tags smoke
 
 # Input Type 1 — user story first, then automation (quick mode, no evaluation)
 /generate-automation-tests --story user-stories/checkout.md --url https://app.example.com
-/generate-automation-tests --story user-stories/login.md --style both --dom snapshots/
+/generate-automation-tests --story user-stories/login.md --style both --dom inputs/snapshots/
 
 # Include BDD feature + step files
-/generate-automation-tests --dom snapshots/ --cases "TC-01: ..." --bdd
+/generate-automation-tests --dom inputs/snapshots/ --cases "TC-01: ..." --bdd
 
 # Preview files without writing anything
-/generate-automation-tests --dom snapshots/ --cases "TC-01: ..." --dry-run
+/generate-automation-tests --dom inputs/snapshots/ --cases "TC-01: ..." --dry-run
 ```
 
 **What gets generated:**
@@ -438,11 +493,28 @@ Use this when you already have POMs and specs but want to add BDD coverage.
 
 ### `/add-test` — Add a test to an existing project
 
-Adds new specs without regenerating the whole project.
+Adds a new spec without regenerating the whole project. Reuses existing POMs wherever possible;
+creates new POMs (with locator extraction) only for missing components.
 
 ```bash
-/add-test --cases "TC-02: Failed Login with wrong password"
+# Tier 1 — Playwright MCP extracts real locators from live URL
+/add-test --case "TC-02: Failed Login with wrong password" --url https://myapp.com/login
+
+# Tier 2 — extract locators from a DOM snapshot
+/add-test --case "TC-03: Filter by category" --dom inputs/snapshots/product-list.html
+
+# Reuse an existing POM — no locator extraction at all
+/add-test --case "TC-04: Remove item from cart" --page CartPage
+
+# BDD output with live URL
+/add-test --case "TC-05: Guest checkout" --url https://myapp.com --bdd
+
+# Tier 3 fallback — AI-guided (no URL or DOM; verify locators manually)
+/add-test --case "TC-06: Sort products by rating"
 ```
+
+> **Tip**: Use `--url` whenever the app is accessible. It gives the most reliable locators and
+> avoids the 0.75 score cap that AI-guided mode applies.
 
 ---
 
@@ -451,7 +523,7 @@ Adds new specs without regenerating the whole project.
 Produces or updates `selectors.json` without touching POMs or specs.
 
 ```bash
-/generate-locators --dom snapshots/
+/generate-locators --dom inputs/snapshots/
 /generate-locators --url https://myapp.com/login
 ```
 
@@ -503,7 +575,7 @@ Runs intake-agent and produces `intake.summary.json` without generating any code
 
 ```bash
 /ingest --cases "TC-01: ..."
-/ingest --dom snapshots/ --cases "TC-01: ..."
+/ingest --dom inputs/snapshots/ --cases "TC-01: ..."
 ```
 
 ---
@@ -529,11 +601,11 @@ aria labels, and data attributes — producing much more reliable locators than 
 1. Open the page in Chrome
 2. Press `F12` → Elements tab
 3. Right-click `<html>` → Copy → Copy outerHTML
-4. Paste into a file in `snapshots/` (e.g., `snapshots/loginPage.html`)
+4. Paste into a file in `inputs/snapshots/` (e.g., `inputs/snapshots/loginPage.html`)
 
 **Option B — Command line:**
 ```bash
-curl -s "https://myapp.com/login" -o snapshots/loginPage.html
+curl -s "https://myapp.com/login" -o inputs/snapshots/loginPage.html
 ```
 
 **Option C — Playwright script:**
@@ -543,7 +615,7 @@ const fs = require('fs');
 const browser = await chromium.launch();
 const page = await browser.newPage();
 await page.goto('https://myapp.com/login');
-fs.writeFileSync('snapshots/loginPage.html', await page.content());
+fs.writeFileSync('inputs/snapshots/loginPage.html', await page.content());
 await browser.close();
 ```
 
@@ -563,10 +635,10 @@ The rule: strip the extension, convert kebab/snake to PascalCase.
 
 ### Multi-page flows
 
-Put all snapshot files in `snapshots/` and pass the directory:
+Put all snapshot files in `inputs/snapshots/` and pass the directory:
 
 ```bash
-/generate-automation-tests --dom snapshots/ --cases "TC-01: ..."
+/generate-automation-tests --dom inputs/snapshots/ --cases "TC-01: ..."
 ```
 
 The kit discovers all `.html` files, generates one POM per page, and wires page transitions
@@ -575,7 +647,7 @@ between them based on your test case steps.
 Example directory structure for a login → dashboard flow:
 
 ```
-snapshots/
+inputs/snapshots/
 ├── loginPage.html         → LoginPage.ts
 └── dashboardPage.html     → DashboardPage.ts
 ```
@@ -661,7 +733,7 @@ Preconditions: User account exists
 List all test cases in the same markdown file — the kit generates one spec per test case.
 
 ```bash
-/generate-automation-tests --dom snapshots/ --cases tests/test-cases.md --tags smoke
+/generate-automation-tests --dom inputs/snapshots/ --cases tests/test-cases.md --tags smoke
 ```
 
 ---
@@ -689,7 +761,7 @@ The kit uses three strategies in priority order. Choose the highest tier availab
 **When to use**: You have `.html` files from the application but no live URL.
 
 ```bash
-/generate-automation-tests --dom snapshots/ --cases "TC-01: ..."
+/generate-automation-tests --dom inputs/snapshots/ --cases "TC-01: ..."
 ```
 
 - Kit parses real HTML to extract `data-testid`, `aria-label`, `id`, `name`, `role`
@@ -710,7 +782,7 @@ The kit uses three strategies in priority order. Choose the highest tier availab
 - Run `npx playwright test --headed` to visually confirm locators work
 
 **Tip**: After running tests once in AI-guided mode, save the real HTML from the browser and
-regenerate with `--dom snapshots/` to get confirmed locators.
+regenerate with `--dom inputs/snapshots/` to get confirmed locators.
 
 ---
 
@@ -731,7 +803,7 @@ BDD (Behavior-Driven Development) artifacts consist of:
 ### Force BDD generation
 
 ```bash
-/generate-automation-tests --dom snapshots/ --cases "TC-01: ..." --bdd
+/generate-automation-tests --dom inputs/snapshots/ --cases "TC-01: ..." --bdd
 ```
 
 ### BDD only (no spec)
@@ -837,7 +909,7 @@ Plugins extend the kit with integrations for Jira, GitHub, and Allure Server.
 
 ### Enable a plugin
 
-Edit `configs/integrations.yml`:
+Edit `tc-to-automate/configs/integrations.yml`:
 
 ```yaml
 plugins:
@@ -904,7 +976,7 @@ export GITHUB_TOKEN="ghp_your_token_here"
 > Set these in the **same terminal session** you will use to launch Claude Code.
 > Environment variables set in one window are NOT inherited by other windows.
 
-#### Step 3 — Enable the plugin in `configs/integrations.yml`
+#### Step 3 — Enable the plugin in `tc-to-automate/configs/integrations.yml`
 
 ```yaml
 github:
@@ -1053,7 +1125,7 @@ If the list is empty, check `testDir` in `playwright.config.ts` and ensure spec 
 **Fix**:
 1. Run in headed mode: `npx playwright test --headed`
 2. Take DOM snapshots of the failing pages (see §8)
-3. Re-run: `/generate-automation-tests --dom snapshots/ --cases "TC-01: ..."`
+3. Re-run: `/generate-automation-tests --dom inputs/snapshots/ --cases "TC-01: ..."`
 4. The kit will regenerate POMs with confirmed selectors
 
 ---
@@ -1110,13 +1182,17 @@ first to preview what would change.
 ### How do I add a test to an existing project without regenerating everything?
 
 ```bash
-/add-test --cases "TC-05: Password reset flow
+# With a live URL (Tier 1 — best locator confidence)
+/add-test --case "TC-05: Password reset flow
 Steps:
   1. Navigate to /forgot-password
   2. Enter email address
   3. Click Send Reset Link
   Assertions:
-  - A confirmation message appears"
+  - A confirmation message appears" --url https://myapp.com
+
+# Without URL (Tier 3 — AI-guided, verify locators manually)
+/add-test --case "TC-05: Password reset flow" --page ForgotPasswordPage
 ```
 
 This adds a new spec file using existing POMs. No existing files are touched.

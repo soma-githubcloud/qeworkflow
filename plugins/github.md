@@ -1,6 +1,6 @@
 # Plugin: GitHub
 
-**Activation**: Set `plugins.github.enabled: true` in `configs/integrations.yml`.
+**Activation**: Set `plugins.github.enabled: true` in `tc-to-automate/configs/integrations.yml`.
 
 ## Capabilities
 

@@ -54,21 +54,21 @@ If --dom value is a directory path → scan for all *.html files
 
 inferPageName(filePath):
   strip directory + extension → convert kebab/snake to PascalCase
-  e.g. "snapshots/amazonHome-page.html"   → "AmazonHomePage"
-  e.g. "snapshots/amazonSearch-page.html" → "AmazonSearchPage"
-  e.g. "snapshots/cart.html"              → "Cart"
+  e.g. "inputs/snapshots/amazonHome-page.html"   → "AmazonHomePage"
+  e.g. "inputs/snapshots/amazonSearch-page.html" → "AmazonSearchPage"
+  e.g. "inputs/snapshots/cart.html"              → "Cart"
 ```
 
 ### Examples
 ```bash
 # Input Type 2 (existing behavior) — test cases directly
-/generate-automation-tests --dom snapshots/ --cases "TC_AMZ_001: Search for iPhone on Amazon"
+/generate-automation-tests --dom inputs/snapshots/ --cases "TC_AMZ_001: Search for iPhone on Amazon"
 /generate-automation-tests --url https://www.amazon.in --cases "TC_AMZ_001: ..."
-/generate-automation-tests --dom snapshots/amazonHome-page.html --cases path/to/testcases.md
+/generate-automation-tests --dom inputs/snapshots/amazonHome-page.html --cases path/to/testcases.md
 
 # Input Type 1 — user story first, then automation
 /generate-automation-tests --story user-stories/checkout.md --url https://app.example.com
-/generate-automation-tests --story user-stories/login.md --style both --dom snapshots/
+/generate-automation-tests --story user-stories/login.md --style both --dom inputs/snapshots/
 ```
 
 ---
@@ -77,18 +77,18 @@ inferPageName(filePath):
 
 ### Step 0: Load context
 - Read `kit.config.json` — get `id`, `tech`, `testStyle`, `outputDir`, `projectName`, `templates`
-- Read `kits/<kit-id>/KIT.md` for naming conventions and kit-specific rules
+- Read `tc-to-automate/kits/<kit-id>/KIT.md` for naming conventions and kit-specific rules
 - Confirm active kit to user: `Active kit: <id> | <tech.testRunner> | <testStyle>`
 
 ### Step 0.5: User Story Branch (only when `--story` is provided)
 
 If `--story` is provided:
-1. Apply `manual-testing/skills/user-story-parser.md` to parse the story
-2. Run `manual-testing/agents/orchestration/quality-master-orchestrator.agent.md` with:
+1. Apply `story-to-testcase/skills/user-story-parser.md` to parse the story
+2. Run `story-to-testcase/agents/orchestration/quality-master-orchestrator.agent.md` with:
    - `mode`: value of `--story-mode` (default: 2 — generation only, no evaluation)
    - `testTypes`: "auto" (user-story-analyzer determines applicable types)
    - `handoffToAutomation`: false
-3. Apply `manual-testing/skills/tc-formatter-bdd.md` and/or `tc-formatter-nonbdd.md`
+3. Apply `story-to-testcase/skills/tc-formatter-bdd.md` and/or `tc-formatter-nonbdd.md`
 4. Set `testCasesRaw` (for Step 2 below) to the path of the formatted TC file(s):
    - BDD: `manual-tcs/bdd/<featureSlug>.feature`
    - nonbdd: `manual-tcs/nonbdd/<featureSlug>.md`
@@ -103,7 +103,7 @@ Apply `--dom` resolution rules above. If a directory was given, list the discove
 the user: `"Found N DOM snapshots in <path>: [file1, file2, ...]"`. Pause if 0 files found.
 
 ### Step 2: Run intake-agent (MANDATORY — always runs first)
-Read and execute `kits/_base/agents/intake-agent.md`. Pass:
+Read and execute `tc-to-automate/kits/_base/agents/intake-agent.md`. Pass:
 - `appUrl`: value of `--url` (or null)
 - `domFiles`: resolved array from Step 1 (or empty)
 - `testCasesRaw`: value of `--cases` (inline text or file path)
@@ -117,7 +117,7 @@ per step (`pageContext`, `transitionTo`), and coverage warnings for unmatched pa
 ### Step 3: Check for existing selectors
 - If `<outputDir>/<projectName>/selectors.json` exists and is non-empty, ask the user:
   `"Existing selectors.json found. Use existing selectors or regenerate?"`
-- If regenerating or file missing: **run locator-agent** (`kits/_base/agents/locator-agent.md`)
+- If regenerating or file missing: **run locator-agent** (`tc-to-automate/kits/_base/agents/locator-agent.md`)
 
   Pass from `intake.summary.json`:
   - `strategy`, `url` (if playwright-mcp), `domFiles` (if dom-based), `testCases`
@@ -127,7 +127,7 @@ per step (`pageContext`, `transitionTo`), and coverage warnings for unmatched pa
   merges all page blocks into one `selectors.json` (one top-level key per page).
 
 ### Step 4: Generate Page Objects
-**Run pom-agent** (`kits/_base/agents/pom-agent.md`). Pass:
+**Run pom-agent** (`tc-to-automate/kits/_base/agents/pom-agent.md`). Pass:
 - `selectorsFile`: `<outputDir>/<projectName>/selectors.json`
 - `intakeFile`: `<outputDir>/<projectName>/intake.summary.json`
 - `kitConfig`: full kit.config.json
@@ -139,15 +139,15 @@ Read `testStyle` from `intake.summary.json`:
 
 | `testStyle` | Action |
 |---|---|
-| `"nonbdd"` | Run **testgen-agent** only → `kits/_base/agents/testgen-agent.md` |
-| `"bdd"` | Run **bdd-agent** only → `kits/_base/agents/bdd-agent.md` |
+| `"nonbdd"` | Run **testgen-agent** only → `tc-to-automate/kits/_base/agents/testgen-agent.md` |
+| `"bdd"` | Run **bdd-agent** only → `tc-to-automate/kits/_base/agents/bdd-agent.md` |
 | `"both"` | Run **both** testgen-agent and bdd-agent (sharing the same POMs) |
 
 Each agent uses `step.pageContext` and `testCase.pageTransitions` from `intake.summary.json`
 to import all required POM classes and route each step call to the correct POM instance.
 
 ### Step 6: Configure reporting
-**Run reporting-agent** (`kits/_base/agents/reporting-agent.md`)
+**Run reporting-agent** (`tc-to-automate/kits/_base/agents/reporting-agent.md`)
 - Only if allure reporter is not already present in `playwright.config.ts`
 
 ### Step 7: Validate

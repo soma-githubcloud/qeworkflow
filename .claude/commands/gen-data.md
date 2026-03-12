@@ -23,7 +23,7 @@ Produces TypeScript factory functions and static JSON data files for use in test
    - If neither: read `intake.summary.json` (if exists) and infer entities from test case steps
    - Fallback: generate a generic `user` entity with common fields
 
-3. **Spawn datagen-agent** (read `kits/_base/agents/datagen-agent.md`)
+3. **Spawn datagen-agent** (read `tc-to-automate/kits/_base/agents/datagen-agent.md`)
    - Pass: `entities`, `count`, `boundary`, `negative`, `language`, `kitConfig`
    - Agent uses `data-factory` skill for faker patterns and boundary class generation
 

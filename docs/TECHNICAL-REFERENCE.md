@@ -1,4 +1,4 @@
-# Automation Kit — Technical Reference
+# SQE (Synthetic Quality Engineer) — Technical Reference
 ## Kit U1: UI Greenfield — Playwright TypeScript
 
 **Version**: 1.0 | **Kit ID**: `kit-u1` | **Date**: 2026-03-09
@@ -14,7 +14,7 @@
 5. [settings.json — MCP Servers, Permissions & Hooks](#5-settingsjson--mcp-servers-permissions--hooks)
 6. [Tools Used](#6-tools-used)
 7. [Base Agents](#7-base-agents)
-7b. [Manual Testing Module](#7b-manual-testing-module)
+7b. [Story-to-Testcase Module](#7b-story-to-testcase-module)
 8. [Skills](#8-skills)
 9. [Kit Configuration (kit.config.json)](#9-kit-configuration-kitconfigjson)
 10. [Output Structure](#10-output-structure)
@@ -27,7 +27,7 @@
 
 ## 1. Architecture Overview
 
-The Automation Kit is an AI-driven test generation system built on top of **Claude Code**. It
+The SQE Kit is an AI-driven test generation system built on top of **Claude Code**. It
 supports two input paths:
 
 ```
@@ -90,8 +90,8 @@ defines all behaviour, routing, and quality rules for the kit.
 
 Every session begins with:
 1. Read `kit.config.json` — note `id`, `mode`, `tech`, `testStyle`, `locatorStrategies`, `outputDir`
-2. Read `kits/<kit-id>/KIT.md` — kit-specific naming conventions and generation rules
-3. Read `configs/integrations.yml` — check active plugins (jira, github, allureServer)
+2. Read `tc-to-automate/kits/<kit-id>/KIT.md` — kit-specific naming conventions and generation rules
+3. Read `tc-to-automate/configs/integrations.yml` — check active plugins (jira, github, allureServer)
 4. Confirm active kit: `Active kit: <id> | <tech.testRunner> | <testStyle>`
 
 ### 2.2 Input Detection Protocol
@@ -159,6 +159,29 @@ After intake completes, `testStyle` is read from `intake.summary.json`:
 ## 3. Slash Commands
 
 All commands live in `.claude/commands/`. They are invoked as `/command-name [args]`.
+
+### `/gen-user-stories`
+**File**: `.claude/commands/gen-user-stories.md`
+**Purpose**: Input Type 0 entry point — extract user stories from requirement documents (BRD, PRD, Feature Spec, meeting notes, images, etc.).
+
+| Argument | Description |
+|---|---|
+| `--req <path>` | File path, comma-separated list, or directory |
+| `--type <doctype>` | Doc type hint: `brd`, `prd`, `feature`, `epic`, `workflow`, `data`, `api`, `ux`, `meeting`, `email`, `ticket`, `other` |
+| `--limit <n>` | Max user stories to generate (default: 20) |
+| `--dry-run` | Preview features without writing |
+| `--then-manual-tests` | Auto-feed each story into `/gen-manual-tests` |
+| `--then-e2e` | Auto-feed each story into `/e2e` |
+| `--url`, `--dom`, `--style` | Forwarded to `/e2e` when `--then-e2e` is set |
+| `--project <name>` | Override project name |
+
+**Pipeline**: req-ingestor → req-analyzer → feature-splitter → user-story-writer → quality lint → summary
+
+**Supported formats**: `.pdf`, `.md`, `.txt`, `.docx` (via pandoc), `.xlsx` (via pandas), `.yaml`, `.json`, `.xml`, `.bpmn`, `.csv`, `.eml`, `.png`, `.jpg`
+
+**Output**: `outputs/<project>/user-stories/US-NNN-<slug>.md` files + `US-INDEX.md`
+
+---
 
 ### `/gen-manual-tests`
 **File**: `.claude/commands/gen-manual-tests.md`
@@ -245,13 +268,26 @@ Produces `intake.summary.json` without generating any test code.
 
 ### `/add-test`
 **File**: `.claude/commands/add-test.md`
-**Purpose**: Add a single new test to an existing project. Reuses existing POMs.
+**Purpose**: Add a single new test to an existing project. Reuses existing POMs; creates new POMs only for missing components.
 
 | Argument | Description |
 |---|---|
-| `--case <text\|file>` | Test case description |
-| `--page <PageName>` | Existing POM to reuse |
-| `--bdd` | Generate BDD format |
+| `--case <text\|file>` | Test case description (inline or file path) |
+| `--page <PageName>` | Existing POM to reuse — skips locator extraction entirely |
+| `--url <url>` | Live app URL — triggers Tier 1 (Playwright MCP) locator extraction for missing POMs |
+| `--dom <path>` | HTML snapshot file or directory — triggers Tier 2 locator extraction for missing POMs |
+| `--bdd` | Generate BDD format (feature + step def) instead of plain spec |
+
+**Locator strategy (resolved automatically when a POM is missing):**
+
+| Condition | Tier | Strategy |
+|-----------|------|----------|
+| `--page` provided and POM exists | — | Skip locator extraction entirely |
+| `--url` provided | 1 | Playwright MCP (highest confidence) |
+| `--dom` provided, no `--url` | 2 | DOM snapshot extraction |
+| Neither `--url` nor `--dom` | 3 | AI-guided (scores capped at 0.75 — verify against app) |
+
+**Key behaviour**: Never modifies existing spec files. Each call generates a NEW spec file.
 
 ### `/setup-reporting`
 **File**: `.claude/commands/setup-reporting.md`
@@ -288,7 +324,7 @@ Produces `intake.summary.json` without generating any test code.
 
 ## 4. Code Generation Rules
 
-Rule files in `.claude/rules/` are automatically applied when generating or editing matching files.
+Rule files in `tc-to-automate/rules/` are automatically applied when generating or editing matching files.
 
 ### playwright-ts.md
 **Applied to**: `*.spec.ts`, `*.test.ts`, `*.page.ts`
@@ -392,7 +428,7 @@ Key rules:
 | `Write` | Creating new POM files, spec files, JSON artifacts |
 | `Edit` | Patching existing files (e.g., adding tags, fixing imports) |
 | `Grep` | Searching for patterns in source files (hooks, selectors, imports) |
-| `Glob` | Discovering files by pattern (e.g., `snapshots/*.html`, `**/*.spec.ts`) |
+| `Glob` | Discovering files by pattern (e.g., `inputs/snapshots/*.html`, `**/*.spec.ts`) |
 | `Bash` | Running npm/playwright/tsc/allure commands |
 | `Agent` | Spawning specialised sub-agents (Explore for DOM analysis, Plan for architecture) |
 | `Skill` | Executing slash commands |
@@ -417,7 +453,7 @@ Key rules:
 
 ## 7. Base Agents
 
-All agents live in `kits/_base/agents/`. They are invoked by reading their `.md` file and following
+All agents live in `tc-to-automate/kits/_base/agents/`. They are invoked by reading their `.md` file and following
 the instructions within. Agents never run themselves — CLAUDE.md dispatches them.
 
 ### intake-agent.md
@@ -493,18 +529,72 @@ For multi-page (Tier 2): filters test case steps by `step.pageContext` to focus 
 **Output**: `configs/.github/workflows/ui.yml`
 
 ### framework-setup-agent.md (kit-u1 specific)
-**Location**: `kits/kit-u1/agents/framework-setup-agent.md`
+**Location**: `tc-to-automate/kits/kit-u1/agents/framework-setup-agent.md`
 **Role**: Full project scaffold — installs dependencies, creates directory structure, generates `playwright.config.ts`, `tsconfig.json`, `package.json`.
 
 ---
 
-## 7b. Manual Testing Module
+## 7b. Requirement-to-Story Module
 
-The `manual-testing/` directory is a self-contained, kit-independent module. It handles all of
+The `req-to-story/` directory handles Input Type 0 (requirement document → user stories).
+Kit-independent — does not depend on any kit files.
+
+```
+req-to-story/
+├── agents/
+│   ├── req-ingestor.agent.md        ← format detection + text extraction (all 27 req types)
+│   ├── req-analyzer.agent.md        ← doc type classification, actors, NFRs, scope
+│   ├── feature-splitter.agent.md    ← splits doc into discrete features (feature-map.json)
+│   └── user-story-writer.agent.md   ← generates US-NNN.md per feature
+├── skills/
+│   └── req-text-extractor.md        ← extraction rules per format tier
+└── rules/
+    └── user-story-quality.md        ← AC specificity, role clarity, traceability rules
+```
+
+### `/gen-user-stories` Arguments
+
+| Argument | Description |
+|---|---|
+| `--req <path>` | File, comma-separated list, or directory of requirement docs |
+| `--type <doctype>` | Hint: `brd`, `prd`, `feature`, `epic`, `workflow`, `data`, `api`, `ux`, `meeting`, `email`, `ticket`, `other` |
+| `--limit <n>` | Max user stories per run (default: 20) |
+| `--dry-run` | Preview features without writing |
+| `--then-manual-tests` | Auto-feed each generated story into `/gen-manual-tests` |
+| `--then-e2e` | Auto-feed each generated story into `/e2e` |
+
+### File Format Extraction Tiers
+
+| Tier | Formats | Method |
+|------|---------|--------|
+| 1 — Native | `.md`, `.txt`, `.eml`, `.pdf`, `.yaml`, `.json`, `.xml`, `.bpmn`, `.csv`, `.png`, `.jpg` | `Read` tool (multimodal for images) |
+| 2 — Shell | `.docx` | `pandoc` → markdown (fallback: `docx2txt`) |
+| 2 — Shell | `.xlsx` | `pandas` → CSV (fallback: save as CSV) |
+| 3 — Unsupported | `.fig` | User prompted to export as PDF/PNG |
+
+### Output Structure
+
+```
+outputs/<projectName>/user-stories/
+├── 00-analysis/
+│   ├── extraction-manifest.json
+│   └── req-analysis.json
+├── 01-features/
+│   └── feature-map.json
+├── US-001-<slug>.md               ← ready for /gen-manual-tests --story
+├── US-002-<slug>.md
+└── US-INDEX.md
+```
+
+---
+
+## 7b. Story-to-Testcase Module
+
+The `story-to-testcase/` directory is a self-contained, kit-independent module. It handles all of
 Input Type 1 (user story → manual TCs). It does not depend on any kit files.
 
 ```
-manual-testing/
+story-to-testcase/
 ├── agents/
 │   ├── orchestration/
 │   │   ├── quality-master-orchestrator.agent.md  ← 5-phase coordinator; bridge to automation
@@ -565,7 +655,7 @@ The formatted output in `manual-tcs/` is passed to `intake-agent` as `testCasesR
 
 ## 8. Skills
 
-Skills are reusable logic modules in `kits/_base/skills/`. Agents invoke them by reading the skill
+Skills are reusable logic modules in `tc-to-automate/kits/_base/skills/`. Agents invoke them by reading the skill
 file and applying its rules.
 
 ### test-case-parser.md
@@ -639,7 +729,7 @@ Generates GitHub Actions YAML workflow files for Playwright test execution in CI
   "locatorStrategies": ["playwright-mcp", "dom-based", "ai-guided"],
   "reporting": ["playwright-html", "allure"],
   "outputDir": "./outputs",
-  "templates": "./kits/kit-u1/templates",
+  "templates": "./tc-to-automate/kits/kit-u1/templates",
   "agents": { ... },
   "namingConventions": { ... },
   "strategyDefaults": { ... },
@@ -652,7 +742,7 @@ Generates GitHub Actions YAML workflow files for Playwright test execution in CI
 
 | Field | Purpose |
 |---|---|
-| `id` | Identifies which kit is active — used to load `kits/<id>/KIT.md` |
+| `id` | Identifies which kit is active — used to load `tc-to-automate/kits/<id>/KIT.md` |
 | `mode` | `"greenfield"` (new project) or `"integration"` (existing codebase) |
 | `testStyle` | Top-level default: `"nonbdd"`, `"bdd"`, or `"both"` |
 | `locatorStrategies` | Ordered list of supported strategies (Tier 1 → 3) |
@@ -743,7 +833,7 @@ outputs/
 
 ## 11. Plugins & Integrations
 
-**Location**: `configs/integrations.yml`
+**Location**: `tc-to-automate/configs/integrations.yml`
 
 All plugins are **disabled by default**. Enable by setting `enabled: true` and providing environment variables.
 
@@ -793,7 +883,7 @@ When enabled: after `/run-smoke`, Allure results are published to a remote Allur
 
 ## 12. Guardrails
 
-Defined in `configs/integrations.yml`:
+Defined in `tc-to-automate/configs/integrations.yml`:
 
 | Guardrail | Value | Effect |
 |---|---|---|

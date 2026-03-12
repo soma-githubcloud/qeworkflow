@@ -27,7 +27,7 @@ Use this when you already have POMs and selectors, or when you want to author Gh
 2. **Normalize inputs** — if `intake.summary.json` already exists and is recent, offer to reuse it.
    Otherwise run intake-agent inline (without writing `intake.summary.json`) to parse test cases.
 
-3. **Spawn bdd-agent** (read `kits/_base/agents/bdd-agent.md`)
+3. **Spawn bdd-agent** (read `tc-to-automate/kits/_base/agents/bdd-agent.md`)
    - Pass: `testCases`, `style`, `extraTags`, `kitConfig`, `dryRun`
    - Agent uses `gherkin-transformer` skill to convert steps to Given/When/Then
    - Agent checks `outputs/<project>/tests/bdd/` for existing step definitions — reuses matching steps

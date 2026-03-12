@@ -1,0 +1,34 @@
+{
+  "id": "kit-u3",
+  "extends": null,
+  "displayName": "UI Greenfield — Selenium Java + TestNG/JUnit5",
+  "mode": "greenfield",
+  "tech": {
+    "language": "java",
+    "testRunner": "testng",
+    "apiClient": null,
+    "bddRunner": null,
+    "bddRunnerBdd": "cucumber-java"
+  },
+  "testStyle": "non-bdd",
+  "locatorStrategies": ["cdp-selenium", "dom-based", "ai-guided"],
+  "reporting": ["allure", "extent"],
+  "outputDir": "./generated",
+  "templates": "./tc-to-automate/kits/kit-u3/templates",
+  "agents": {
+    "locator": "./tc-to-automate/kits/kit-u3/agents/locator-agent-java.md",
+    "testGenerator": "./tc-to-automate/kits/_base/agents/test-generator-agent.md",
+    "scaffolder": "./tc-to-automate/kits/_base/agents/scaffolder-agent.md",
+    "reporting": "./tc-to-automate/kits/_base/agents/reporting-agent.md"
+  },
+  "namingConventions": {
+    "pageObjectSuffix": "Page",
+    "testClassSuffix": "Test",
+    "stepsClassSuffix": "Steps",
+    "pomDir": "src/test/java/com/{{projectName}}/pages",
+    "testDir": "src/test/java/com/{{projectName}}/tests",
+    "stepsDir": "src/test/java/com/{{projectName}}/steps",
+    "featuresDir": "src/test/resources/features"
+  },
+  "notes": "Tier-1 locator strategy uses CDP/Selenium IDE instead of Playwright MCP. All templates are Java-based."
+}

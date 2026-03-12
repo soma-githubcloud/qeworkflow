@@ -1,0 +1,30 @@
+{
+  "id": "kit-a2",
+  "extends": null,
+  "displayName": "API Testing — Python Requests + PyTest",
+  "mode": "greenfield",
+  "tech": {
+    "language": "python",
+    "testRunner": "pytest",
+    "apiClient": "requests",
+    "bddRunner": null,
+    "bddRunnerBdd": "pytest-bdd"
+  },
+  "testStyle": "non-bdd",
+  "locatorStrategies": [],
+  "reporting": ["allure", "pytest-html"],
+  "outputDir": "./generated",
+  "templates": "./tc-to-automate/kits/kit-a2/templates",
+  "agents": {
+    "locator": null,
+    "apiSpecParser": "./tc-to-automate/kits/kit-a2/agents/api-spec-parser-agent.md",
+    "testGenerator": "./tc-to-automate/kits/_base/agents/test-generator-agent.md",
+    "scaffolder": "./tc-to-automate/kits/_base/agents/scaffolder-agent.md",
+    "reporting": "./tc-to-automate/kits/_base/agents/reporting-agent.md"
+  },
+  "inputs": {
+    "supported": ["test-cases", "postman-collection", "openapi-spec"],
+    "locatorRequired": false
+  },
+  "notes": "Python Requests library for API calls. PyTest as test runner. BDD optional via pytest-bdd."
+}

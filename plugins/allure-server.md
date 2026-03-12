@@ -1,6 +1,6 @@
 # Plugin: Allure Server
 
-**Activation**: Set `plugins.allureServer.enabled: true` in `configs/integrations.yml`.
+**Activation**: Set `plugins.allureServer.enabled: true` in `tc-to-automate/configs/integrations.yml`.
 
 ## Capabilities
 

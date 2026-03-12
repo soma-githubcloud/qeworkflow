@@ -15,9 +15,9 @@ and uploads artifacts. Idempotent — safe to re-run; updates existing file if c
 ## Execution Steps
 
 1. **Read kit.config.json** — get `tech.testRunner`, `reporting`, `projectName`
-2. **Read `configs/integrations.yml`** — check if `allureServer.enabled = true` (add publish step if so)
+2. **Read `tc-to-automate/configs/integrations.yml`** — check if `allureServer.enabled = true` (add publish step if so)
 
-3. **Spawn ci-agent** (read `kits/_base/agents/ci-agent.md`)
+3. **Spawn ci-agent** (read `tc-to-automate/kits/_base/agents/ci-agent.md`)
    - Pass: `provider`, `env`, `matrix`, `schedule`, `kitConfig`, `integrations`
    - Agent uses `ci-scaffolder` skill for YAML generation
 

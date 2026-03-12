@@ -24,9 +24,9 @@ Run this after `/generate-locators` or when you have an existing `locators.json`
    - If `--overwrite` not set, skip components whose POM file already exists
    - Inform the user which files will be created vs skipped
 
-4. **Spawn test-generator-agent in POM-only mode** (read `kits/_base/agents/test-generator-agent.md`)
+4. **Spawn test-generator-agent in POM-only mode** (read `tc-to-automate/kits/_base/agents/test-generator-agent.md`)
    - Pass: `mode: "pom-only"`, `locatorsFile`, `kitConfig`, `overwrite`
-   - Agent uses `kits/<kit-id>/templates/page-object.ts.tmpl` (or equivalent for the kit)
+   - Agent uses `tc-to-automate/kits/<kit-id>/templates/page-object.ts.tmpl` (or equivalent for the kit)
 
 5. **Validate**
    - Run `npx tsc --noEmit` (TypeScript kits) or `mvn compile -q` (Java kits)

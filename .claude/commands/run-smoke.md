@@ -11,10 +11,12 @@ and attaches a pass/fail summary with failure details directly to the response.
 | `--browser <name>` | Browser to use (default: chromium) |
 | `--headed` | Run in headed mode (useful for debugging) |
 | `--report-only` | Skip test run; only regenerate reports from existing allure-results |
+| `--nonbdd-only` | Run only Playwright non-BDD specs (skip cucumber-js) |
+| `--bdd-only` | Run only BDD feature files (skip Playwright specs) |
 
 ## Execution Steps
 
-1. **Read kit.config.json** — get `outputDir`, `projectName`, `tech.testRunner`
+1. **Read kit.config.json** — get `outputDir`, `projectName`, `tech.testRunner`, `testStyle`
 
 2. **Confirm project is ready**:
    - Check that `outputs/<project>/playwright.config.ts` or equivalent exists
@@ -24,11 +26,21 @@ and attaches a pass/fail summary with failure details directly to the response.
 3. **Run tests** (skip if `--report-only`):
 
    **Kit-U1/U2/H1 (Playwright)**:
+
+   Run both suites unless `--nonbdd-only` or `--bdd-only` is set. Capture each exit code independently; a non-zero exit means test failures (not a tool error).
+
+   **Non-BDD (Playwright specs)** — skip if `--bdd-only`:
    ```bash
    cd outputs/<project>
    npx playwright test --grep "@smoke" --project=<browser>
    ```
-   Capture exit code. A non-zero exit means test failures (not a tool error).
+
+   **BDD (Cucumber)** — skip if `--nonbdd-only`; only runs if `tests/bdd/*.feature` files exist:
+   ```bash
+   cd outputs/<project>
+   npx cucumber-js --tags @smoke
+   ```
+   If no `.feature` files exist, skip silently (do not error).
 
    **Kit-U3/U4 (TestNG)**:
    ```bash
@@ -42,33 +54,32 @@ and attaches a pass/fail summary with failure details directly to the response.
 
 4. **Generate reports** (always runs, even on test failures):
    ```bash
-   npx allure generate allure-results --clean -o allure-report
+   npx allure generate allure-results --output allure-report
    ```
 
 5. **Parse results** from Playwright's JSON reporter or Allure result files:
-   - Total: passed / failed / skipped
+   - Total: passed / failed / skipped — aggregate across both non-BDD and BDD runs
    - List of failed test names + first error line from each
 
 6. **Report to user**:
    ```
    Smoke Run Complete
    ──────────────────────────────────────
-   Passed:  12 / 15
-   Failed:  3
-   Skipped: 0
-
-   FAILED TESTS:
-   ✗ TC-003: Checkout with credit card → AssertionError: expected URL /confirmation, got /error
-   ✗ TC-007: Password reset email → Timeout waiting for email-sent banner
-   ✗ TC-012: Search with special chars → expect(locator).toHaveText failed
+   Non-BDD (Playwright):  1 passed / 0 failed
+   BDD (Cucumber):        1 passed / 0 failed
+   ──────────────────────────────────────
+   Total Passed:  2
+   Total Failed:  0
+   Skipped:       0
 
    Reports:
    → Playwright HTML: outputs/<project>/playwright-report/index.html
    → Allure:          outputs/<project>/allure-report/index.html
-   → Open with: npm run allure:open
+   → Open with: npx allure open allure-report
    ```
 
 ## Notes
 - Failures in this command are TEST failures, not system errors — do not treat as a crash
-- If all 0 tests ran (no @smoke tags found): warn and suggest `/validate-kit` to check test discovery
+- If 0 tests ran (no @smoke tags found in either runner): warn and suggest `/validate-kit` to check test discovery
 - Always generate reports regardless of test outcome
+- BDD results are written to `allure-results/` by `allure-cucumberjs`; non-BDD results by `allure-playwright` — both feed the same Allure report

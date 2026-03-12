@@ -62,7 +62,7 @@ Resolution order:
 ### Step 0: Load Kit Context
 
 - Read `kit.config.json` — get `id`, `tech`, `testStyle`, `outputDir`, `projectName`
-- Read `kits/<kit-id>/KIT.md` for naming conventions
+- Read `tc-to-automate/kits/<kit-id>/KIT.md` for naming conventions
 - Confirm to user: `Active kit: <id> | <tech.testRunner> | <testStyle>`
 - Resolve `projectName`: `--project` argument overrides `kit.config.json`
 - Resolve `testStyle`: `--style` argument overrides `kit.config.json`
@@ -70,7 +70,7 @@ Resolution order:
 
 ### Step 1: Parse User Story
 
-Apply `manual-testing/skills/user-story-parser.md`:
+Apply `story-to-testcase/skills/user-story-parser.md`:
 - Read `--story` input (file or inline)
 - Extract: `featureName`, `featureSlug`, `acceptanceCriteria`, `technicalContext`
 - Report: "User story loaded: [featureName] | [AC count] acceptance criteria found"
@@ -78,7 +78,7 @@ Apply `manual-testing/skills/user-story-parser.md`:
 
 ### Step 2: Manual Test Case Generation (Phase 1–3)
 
-Read and execute `manual-testing/agents/orchestration/quality-master-orchestrator.agent.md`.
+Read and execute `story-to-testcase/agents/orchestration/quality-master-orchestrator.agent.md`.
 
 Pass:
 ```
@@ -103,12 +103,12 @@ The master orchestrator runs:
 After master orchestrator completes, apply TC formatter skills:
 
 **If `testStyle` includes `"bdd"`**:
-- Apply `manual-testing/skills/tc-formatter-bdd.md`
+- Apply `story-to-testcase/skills/tc-formatter-bdd.md`
 - Input: `01-scenarios/` + `03-gap-filled/` (if exists)
 - Output: `manual-tcs/bdd/<featureSlug>.feature` + `manual-tcs/bdd/TC-INDEX.md`
 
 **If `testStyle` includes `"nonbdd"`**:
-- Apply `manual-testing/skills/tc-formatter-nonbdd.md`
+- Apply `story-to-testcase/skills/tc-formatter-nonbdd.md`
 - Input: same
 - Output: `manual-tcs/nonbdd/<featureSlug>.md` + `manual-tcs/nonbdd/TC-INDEX.md`
 
@@ -137,7 +137,7 @@ Locator strategy: [playwright-mcp | dom-based | ai-guided]
 Run the following agents in order (same as `/generate-automation-tests`):
 
 **Step 4a: intake-agent**
-Read and execute `kits/_base/agents/intake-agent.md`. Pass:
+Read and execute `tc-to-automate/kits/_base/agents/intake-agent.md`. Pass:
 - `appUrl`: `--url` value (or null)
 - `domFiles`: resolved from `--dom` (or empty)
 - `testCasesRaw`: path to formatted manual TCs
@@ -149,10 +149,10 @@ Read and execute `kits/_base/agents/intake-agent.md`. Pass:
 Output: `<outputDir>/<projectName>/intake.summary.json`
 
 **Step 4b: locator-agent** (if `selectors.json` not already present or user chooses to regenerate)
-Read and execute `kits/_base/agents/locator-agent.md` with strategy from `intake.summary.json`.
+Read and execute `tc-to-automate/kits/_base/agents/locator-agent.md` with strategy from `intake.summary.json`.
 
 **Step 4c: pom-agent**
-Read and execute `kits/_base/agents/pom-agent.md` → generates POM files in `src/pages/`.
+Read and execute `tc-to-automate/kits/_base/agents/pom-agent.md` → generates POM files in `src/pages/`.
 
 **Step 4d: testgen-agent and/or bdd-agent**
 Based on `testStyle` from `intake.summary.json`:
@@ -196,7 +196,7 @@ Print a consolidated summary table:
 - Always run `user-story-parser` first — it normalizes the story before any agent sees it
 - Always pass the **complete** user story text to specialist agents — never a summary
 - Manual TCs are generated BEFORE automation artifacts — they are the input contract
-- `--skip-automation` is respected strictly — do not run any kits/_base/agents/* steps
+- `--skip-automation` is respected strictly — do not run any tc-to-automate/kits/_base/agents/* steps
 - If `--url` and `--dom` are both absent and `--skip-automation` is NOT set, warn the user:
   `"No URL or DOM provided. Automation locators will use AI-guided strategy (Tier 3 — scores capped at 0.75). Add --url or --dom for higher-confidence selectors."`
 - The canonical selector file is `selectors.json` — never `locators.json`

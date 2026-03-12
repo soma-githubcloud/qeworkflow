@@ -1,6 +1,6 @@
 # Plugin: Jira / Zephyr / Xray
 
-**Activation**: Set `plugins.jira.enabled: true` in `configs/integrations.yml`.
+**Activation**: Set `plugins.jira.enabled: true` in `tc-to-automate/configs/integrations.yml`.
 
 ## Capabilities
 

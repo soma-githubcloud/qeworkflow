@@ -20,7 +20,7 @@ and approve locators before generating full test artifacts.
    - `--dom` provided → `"dom-based"` (Tier 2)
    - Neither provided → `"ai-guided"` (Tier 3, will ask for test case context)
 
-3. **Spawn locator-agent** (read `kits/_base/agents/locator-agent.md`)
+3. **Spawn locator-agent** (read `tc-to-automate/kits/_base/agents/locator-agent.md`)
    - Pass: `strategy`, `url`, `domFile`, `components` (optional focus list)
    - Agent writes `<outputDir>/<projectName>/locators.json`
 
