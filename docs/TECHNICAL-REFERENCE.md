@@ -1,77 +1,84 @@
 # SQE (Synthetic Quality Engineer) — Technical Reference
 ## Kit U1: UI Greenfield — Playwright TypeScript
 
-**Version**: 1.0 | **Kit ID**: `kit-u1` | **Date**: 2026-03-09
+**Version**: 2.0 | **Kit ID**: `kit-u1` | **Date**: 2026-03-13
 
 ---
 
 ## Table of Contents
 
 1. [Architecture Overview](#1-architecture-overview)
-2. [CLAUDE.md — The Orchestrator](#2-claudemd--the-orchestrator)
-3. [Slash Commands](#3-slash-commands)
-4. [Code Generation Rules](#4-code-generation-rules)
-5. [settings.json — MCP Servers, Permissions & Hooks](#5-settingsjson--mcp-servers-permissions--hooks)
-6. [Tools Used](#6-tools-used)
-7. [Base Agents](#7-base-agents)
-7b. [Story-to-Testcase Module](#7b-story-to-testcase-module)
-8. [Skills](#8-skills)
-9. [Kit Configuration (kit.config.json)](#9-kit-configuration-kitconfigjson)
-10. [Output Structure](#10-output-structure)
-11. [Plugins & Integrations](#11-plugins--integrations)
-12. [Guardrails](#12-guardrails)
-13. [Locator Strategy Tiers](#13-locator-strategy-tiers)
-14. [Generated Project Config](#14-generated-project-config)
+2. [Three Capabilities](#2-three-capabilities)
+3. [CLAUDE.md — The Orchestrator](#3-claudemd--the-orchestrator)
+4. [Slash Commands](#4-slash-commands)
+5. [Code Generation Rules](#5-code-generation-rules)
+6. [settings.json — MCP Servers, Permissions & Hooks](#6-settingsjson--mcp-servers-permissions--hooks)
+7. [Tools Used](#7-tools-used)
+8. [Capability 1 — Req-to-Story Module](#8-capability-1--req-to-story-module)
+9. [Capability 2 — Story-to-Testcase Module](#9-capability-2--story-to-testcase-module)
+10. [Capability 3 — TC-to-Automate Agents](#10-capability-3--tc-to-automate-agents)
+11. [Skills](#11-skills)
+12. [Kit Configuration (kit.config.json)](#12-kit-configuration-kitconfigjson)
+13. [Output Structure](#13-output-structure)
+14. [Plugins & Integrations](#14-plugins--integrations)
+15. [Guardrails](#15-guardrails)
+16. [Locator Strategy Tiers](#16-locator-strategy-tiers)
+17. [Generated Project Config](#17-generated-project-config)
 
 ---
 
 ## 1. Architecture Overview
 
-The SQE Kit is an AI-driven test generation system built on top of **Claude Code**. It
-supports two input paths:
+The SQE Kit is an AI-driven quality engineering system built on top of **Claude Code**. It
+supports three input paths across three self-contained capability modules:
 
 ```
-┌──────────────────────────────────┐   ┌─────────────────────────────────┐
-│  Input Type 1: User Story        │   │  Input Type 2: Test Cases        │
-│  (.md / .txt / .pdf / .yml)      │   │  (inline text / .md file)        │
-└───────────────┬──────────────────┘   └──────────────┬──────────────────┘
-                │                                      │
-                ▼                                      │
-   user-story-parser skill                             │
-                │                                      │
-                ▼                                      │
-   quality-master-orchestrator                         │
-   ├─ user-story-analyzer                              │
-   ├─ quality-orchestrator                             │
-   │   └─ 8 specialist agents                          │
-   ├─ quality-evaluator (mode 1)                       │
-   └─ gap-filler (mode 1)                              │
-                │                                      │
-                ▼                                      │
-   tc-formatter-bdd / tc-formatter-nonbdd              │
-   (manual-tcs/ — final deliverable)                   │
-                │ (when automation requested)          │
-                └──────────────┬───────────────────────┘
-                               ▼
-┌──────────────────────────────────────────────────────┐
-│  CLAUDE.md  —  Orchestrator                           │
-│  Reads kit config, routes to automation agents        │
-└──────────────────────────────────────────────────────┘
-                               │
-        ┌──────────────────────┼──────────────────────┐
-        ▼                      ▼                       ▼
-   intake-agent          locator-agent            pom-agent
-   (Step 0,              (Tier 1/2/3)             (POM classes)
-    always first)
-        │                                              │
-        └──────────────────────┬───────────────────────┘
-                               ▼
-                  testgen-agent / bdd-agent
-                  (spec files / feature+steps)
-                               │
-                               ▼
-                        reporting-agent
-                        (playwright.config.ts)
+INPUT TYPES
+───────────────────────────────────────────────────────────────────────────────
+ Type 0: Requirement Doc          Type 1: User Story        Type 2: Test Cases
+ (.pdf/.docx/.xlsx/.md/           (.md/.txt/.pdf/.yml/      (inline text /
+  .png/.jpg/etc.)                  inline text)              .md file / spec)
+───────────────────────────────────────────────────────────────────────────────
+         │                               │                          │
+         ▼                               │                          │
+┌─────────────────────┐                 │                          │
+│ CAPABILITY 1        │                 │                          │
+│ req-to-story/       │                 │                          │
+│                     │                 │                          │
+│ req-ingestor        │                 │                          │
+│ req-analyzer        │                 │                          │
+│ feature-splitter    │                 │                          │
+│ user-story-writer   │                 │                          │
+│                     │                 │                          │
+│ → US-NNN.md files   │─────────────────┘                          │
+└─────────────────────┘  (feeds into Type 1 pipeline)              │
+                                        │                          │
+                                        ▼                          │
+                         ┌─────────────────────────┐               │
+                         │ CAPABILITY 2             │               │
+                         │ story-to-testcase/       │               │
+                         │                          │               │
+                         │ user-story-parser        │               │
+                         │ quality-master-orch.     │               │
+                         │ ├─ user-story-analyzer   │               │
+                         │ ├─ quality-orchestrator  │               │
+                         │ │   └─ 8 specialists     │               │
+                         │ ├─ quality-evaluator     │               │
+                         │ └─ gap-filler            │               │
+                         │ tc-formatter skill       │               │
+                         │                          │               │
+                         │ → manual-tcs/            │               │
+                         └─────────────────────────┘               │
+                                        │ (when automation)        │
+                                        └──────────────────────────┘
+                                                     │
+                         ┌───────────────────────────▼──────────────────────┐
+                         │ CAPABILITY 3 — TC-to-Automate (kit-aware)         │
+                         │                                                    │
+                         │  intake-agent → locator-agent → pom-agent         │
+                         │         ↓              ↓             ↓            │
+                         │  testgen-agent   bdd-agent    reporting-agent      │
+                         └───────────────────────────────────────────────────┘
 ```
 
 All automation agents communicate through **`intake.summary.json`** — written by intake-agent,
@@ -79,14 +86,42 @@ consumed by all downstream agents. No automation agent skips intake.
 
 ---
 
-## 2. CLAUDE.md — The Orchestrator
+## 2. Three Capabilities
+
+The kit is organized into three independent capability modules. Capabilities 1 and 2 are
+kit-independent. Capability 3 is kit-aware.
+
+```
+Capability 1 — req-to-story/         : Requirement Doc  → User Stories
+Capability 2 — story-to-testcase/    : User Story       → Manual Test Cases
+Capability 3 — tc-to-automate/       : Test Cases       → Automation Artifacts
+```
+
+| Module | Input | Output | Kit-aware? |
+|--------|-------|--------|-----------|
+| `req-to-story/` | BRD, PRD, Feature Spec, meeting notes, images, spreadsheets | `US-NNN.md` user story files | No |
+| `story-to-testcase/` | User story (any format) | Manual TC documents (BDD `.feature` or non-BDD `.md`) | No |
+| `tc-to-automate/` | Test cases or manual TC output | POMs, spec files, BDD artifacts, CI pipeline | Yes |
+
+**Input directories** (place files here before running commands):
+
+| Directory | Used by |
+|-----------|---------|
+| `inputs/req-docs/` | Capability 1 — `/gen-user-stories` |
+| `inputs/user-stories/` | Capability 2 — `/gen-manual-tests`, `/e2e` |
+| `inputs/snapshots/` | Capability 3 — DOM snapshots for Tier 2 locator extraction |
+| `inputs/test-cases/` | Capability 3 — manually authored test case files |
+
+---
+
+## 3. CLAUDE.md — The Orchestrator
 
 **Location**: `CLAUDE.md` (project root)
 
 CLAUDE.md is the master instruction file loaded by Claude Code at the start of every session. It
 defines all behaviour, routing, and quality rules for the kit.
 
-### 2.1 Startup Protocol
+### 3.1 Startup Protocol
 
 Every session begins with:
 1. Read `kit.config.json` — note `id`, `mode`, `tech`, `testStyle`, `locatorStrategies`, `outputDir`
@@ -94,7 +129,25 @@ Every session begins with:
 3. Read `tc-to-automate/configs/integrations.yml` — check active plugins (jira, github, allureServer)
 4. Confirm active kit: `Active kit: <id> | <tech.testRunner> | <testStyle>`
 
-### 2.2 Input Detection Protocol
+### 3.2 Input Detection Protocol
+
+### Input Type 0 — Requirement Document
+
+| Signal | Classification |
+|--------|---------------|
+| `--req` flag present | `req_doc = true` |
+| File ending in `.docx`, `.brd`, `.prd` | `req_doc = true` |
+| Path under `requirements/`, `specs/`, or `inputs/req-docs/` | `req_doc = true` |
+
+### Input Type 1 — User Story
+
+| Input Signal | Classification |
+|---|---|
+| Text containing `"As a <role>"`, `"I want"`, `"So that"` | `user_story = true` |
+| File ending in `.story.md`, `.us.md`, or path under `inputs/user-stories/` | `user_story = true` |
+| Text with `"Feature:"` heading + acceptance criteria section | `user_story = true` |
+
+### Input Type 2 — Test Cases / Scenarios
 
 | Input Signal | Classification |
 |---|---|
@@ -104,7 +157,15 @@ Every session begins with:
 | JSON with `"info"` + `"paths"` keys | `openapi_spec = true` |
 | JSON with `"item"` arrays + request objects | `postman_collection = true` |
 
-### 2.3 Agent Dispatch Table
+### 3.3 Agent Dispatch Table
+
+**Input Type 0 — Requirement Doc → User Stories → (optional) Manual TCs → (optional) Automation:**
+
+| Slash Command | Agents / Skills Invoked |
+|---|---|
+| `/gen-user-stories` | req-ingestor → req-analyzer → feature-splitter → user-story-writer |
+| `/gen-user-stories --then-manual-tests` | [same as above] → for each US: user-story-parser → quality-master-orchestrator → tc-formatter |
+| `/gen-user-stories --then-e2e` | [same as above] → for each US: full manual TC pipeline → full automation pipeline |
 
 **Input Type 1 — User Story → Manual TCs → (optional) Automation:**
 
@@ -132,7 +193,7 @@ Every session begins with:
 | `/run-test` | No agent — shell commands directly |
 | `/validate-kit` | No agent — validation commands directly |
 
-### 2.4 testStyle Routing Rule
+### 3.4 testStyle Routing Rule
 
 After intake completes, `testStyle` is read from `intake.summary.json`:
 
@@ -142,7 +203,7 @@ After intake completes, `testStyle` is read from `intake.summary.json`:
 | `"bdd"` | bdd-agent only |
 | `"both"` | testgen-agent + bdd-agent |
 
-### 2.5 Quality Rules (Non-Negotiable)
+### 3.5 Quality Rules (Non-Negotiable)
 
 1. Never generate test code without confirmed locators
 2. Always use Page Object Model — locators live in POM files only
@@ -156,7 +217,7 @@ After intake completes, `testStyle` is read from `intake.summary.json`:
 
 ---
 
-## 3. Slash Commands
+## 4. Slash Commands
 
 All commands live in `.claude/commands/`. They are invoked as `/command-name [args]`.
 
@@ -299,7 +360,7 @@ Produces `intake.summary.json` without generating any test code.
 
 ### `/run-smoke`
 **File**: `.claude/commands/run-smoke.md`
-**Purpose**: Execute `@smoke`-tagged tests, generate reports, surface pass/fail summary.
+**Purpose**: Execute `@smoke`-tagged tests across both non-BDD (Playwright) and BDD (Cucumber) suites, generate reports, surface pass/fail summary.
 
 | Argument | Description |
 |---|---|
@@ -307,10 +368,23 @@ Produces `intake.summary.json` without generating any test code.
 | `--browser <name>` | Browser (default: chromium) |
 | `--headed` | Run headed mode |
 | `--report-only` | Skip run, regenerate reports only |
+| `--nonbdd-only` | Run Playwright specs only (skip Cucumber) |
+| `--bdd-only` | Run Cucumber feature files only (skip specs) |
+
+**Run order**: Playwright specs first (`--grep "@smoke"`), then `npx cucumber-js --tags @smoke`. Results aggregated into one summary.
 
 ### `/run-test`
 **File**: `.claude/commands/run-test.md`
-**Purpose**: Execute a specific test or test file.
+**Purpose**: Execute tests across both non-BDD (Playwright) and BDD (Cucumber) suites with optional tag filtering.
+
+| Argument | Description |
+|---|---|
+| `--tags <expr>` | Tag filter (default: all tests) |
+| `--browser <name>` | Browser (default: chromium) |
+| `--headed` | Run headed mode |
+| `--report-only` | Skip run, regenerate reports only |
+| `--nonbdd-only` | Run Playwright specs only |
+| `--bdd-only` | Run Cucumber feature files only |
 
 ### `/validate-kit`
 **File**: `.claude/commands/validate-kit.md`
@@ -322,7 +396,7 @@ Produces `intake.summary.json` without generating any test code.
 
 ---
 
-## 4. Code Generation Rules
+## 5. Code Generation Rules
 
 Rule files in `tc-to-automate/rules/` are automatically applied when generating or editing matching files.
 
@@ -381,7 +455,7 @@ Key rules:
 
 ---
 
-## 5. settings.json — MCP Servers, Permissions & Hooks
+## 6. settings.json — MCP Servers, Permissions & Hooks
 
 **Location**: `.claude/settings.json`
 
@@ -418,7 +492,7 @@ Key rules:
 
 ---
 
-## 6. Tools Used
+## 7. Tools Used
 
 ### Claude Code Built-in Tools
 
@@ -451,10 +525,10 @@ Key rules:
 
 ---
 
-## 7. Base Agents
+## 10. Capability 3 — TC-to-Automate Agents
 
-All agents live in `tc-to-automate/kits/_base/agents/`. They are invoked by reading their `.md` file and following
-the instructions within. Agents never run themselves — CLAUDE.md dispatches them.
+All automation agents live in `tc-to-automate/kits/_base/agents/`. They are kit-aware and invoked by reading
+their `.md` file. Agents never run themselves — CLAUDE.md dispatches them via the Agent Dispatch Table.
 
 ### intake-agent.md
 **Role**: Step 0 — normalise all inputs, produce `intake.summary.json`.
@@ -534,7 +608,7 @@ For multi-page (Tier 2): filters test case steps by `step.pageContext` to focus 
 
 ---
 
-## 7b. Requirement-to-Story Module
+## 8. Capability 1 — Req-to-Story Module
 
 The `req-to-story/` directory handles Input Type 0 (requirement document → user stories).
 Kit-independent — does not depend on any kit files.
@@ -551,6 +625,15 @@ req-to-story/
 └── rules/
     └── user-story-quality.md        ← AC specificity, role clarity, traceability rules
 ```
+
+### Agents
+
+| Agent | Role |
+|-------|------|
+| `req-ingestor.agent.md` | Format detection + text extraction (Tier 1/2/3) — always runs first |
+| `req-analyzer.agent.md` | Doc type classification + actors + NFRs + scope |
+| `feature-splitter.agent.md` | Splits doc into discrete features → `feature-map.json` |
+| `user-story-writer.agent.md` | Generates `US-NNN.md` per feature with acceptance criteria |
 
 ### `/gen-user-stories` Arguments
 
@@ -588,7 +671,7 @@ outputs/<projectName>/user-stories/
 
 ---
 
-## 7b. Story-to-Testcase Module
+## 9. Capability 2 — Story-to-Testcase Module
 
 The `story-to-testcase/` directory is a self-contained, kit-independent module. It handles all of
 Input Type 1 (user story → manual TCs). It does not depend on any kit files.
@@ -653,7 +736,7 @@ The formatted output in `manual-tcs/` is passed to `intake-agent` as `testCasesR
 
 ---
 
-## 8. Skills
+## 11. Skills
 
 Skills are reusable logic modules in `tc-to-automate/kits/_base/skills/`. Agents invoke them by reading the skill
 file and applying its rules.
@@ -708,7 +791,7 @@ Generates GitHub Actions YAML workflow files for Playwright test execution in CI
 
 ---
 
-## 9. Kit Configuration (kit.config.json)
+## 12. Kit Configuration (kit.config.json)
 
 **Location**: `kit.config.json` (project root)
 
@@ -777,7 +860,7 @@ Controls which test style is generated based on locator strategy:
 
 ---
 
-## 10. Output Structure
+## 13. Output Structure
 
 ```
 outputs/
@@ -831,7 +914,7 @@ outputs/
 
 ---
 
-## 11. Plugins & Integrations
+## 14. Plugins & Integrations
 
 **Location**: `tc-to-automate/configs/integrations.yml`
 
@@ -881,7 +964,7 @@ When enabled: after `/run-smoke`, Allure results are published to a remote Allur
 
 ---
 
-## 12. Guardrails
+## 15. Guardrails
 
 Defined in `tc-to-automate/configs/integrations.yml`:
 
@@ -896,7 +979,7 @@ Defined in `tc-to-automate/configs/integrations.yml`:
 
 ---
 
-## 13. Locator Strategy Tiers
+## 16. Locator Strategy Tiers
 
 | Tier | Strategy | Trigger | Precision | Score cap |
 |---|---|---|---|---|
@@ -908,7 +991,7 @@ Defined in `tc-to-automate/configs/integrations.yml`:
 
 ---
 
-## 14. Generated Project Config
+## 17. Generated Project Config
 
 ### playwright.config.ts (generated)
 
@@ -951,3 +1034,7 @@ The `@pages/*` path alias means spec files import POMs as:
 ```typescript
 import { LoginPage } from '@pages/LoginPage';
 ```
+
+---
+
+*Last updated: 2026-03-13 | Kit version: 2.0 | Three capabilities: req-to-story / story-to-testcase / tc-to-automate*

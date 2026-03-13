@@ -13,6 +13,7 @@
 4. [Configure Claude Code](#4-configure-claude-code)
 5. [Project Structure at a Glance](#5-project-structure-at-a-glance)
 6. [Quick-Start: Your First Test in 5 Minutes](#6-quick-start-your-first-test-in-5-minutes)
+6b. [Quick-Start: From Requirement Doc to User Stories](#6b-quick-start-from-requirement-doc-to-user-stories)
 7. [Command Reference](#7-command-reference)
 8. [Working with DOM Snapshots](#8-working-with-dom-snapshots)
 9. [Working with Test Cases](#9-working-with-test-cases)
@@ -33,12 +34,19 @@ manual TC documents, Page Object Models, spec files, BDD feature files, and CI p
 
 You describe **what** to test (or provide a user story). The kit figures out **how** to test it.
 
-**Two input paths:**
+**Three capabilities — start from wherever you are in the quality lifecycle:**
 
-| Input | Command | Output |
-|-------|---------|--------|
-| User story (`.md`, `.txt`, `.pdf`, `.yml`) | `/gen-manual-tests` or `/e2e` | Manual TCs (BDD `.feature` or non-BDD `.md`) → optionally automation artifacts |
-| Test cases / scenarios | `/generate-automation-tests` | Automation artifacts directly |
+| Capability | Input | Command | Output |
+|-----------|-------|---------|--------|
+| **1 — Req-to-Story** | Requirement doc (BRD, PRD, Feature Spec, Excel, Word, image, meeting notes) | `/gen-user-stories` | `US-NNN.md` user story files |
+| **2 — Story-to-Testcase** | User story (`.md`, `.txt`, `.pdf`, `.yml`, inline text) | `/gen-manual-tests` or `/e2e` | Manual TCs (BDD `.feature` or non-BDD `.md`) → optionally automation |
+| **3 — TC-to-Automate** | Test cases or scenarios (inline text, `.md` file) | `/generate-automation-tests` | POMs + spec files + BDD artifacts |
+
+**You can start at any capability** — or chain them together:
+```
+Req Doc → /gen-user-stories → User Stories → /gen-manual-tests → Manual TCs → /generate-automation-tests → Automation
+```
+Or run the full chain in one command: `/gen-user-stories --req docs/prd.pdf --then-e2e --url https://app.example.com`
 
 **What gets generated for you:**
 - `manual-tests/manual-tcs/` — Manual test case documents (BDD or non-BDD format)
@@ -186,36 +194,46 @@ If you do not see this line, ask Claude: _"What is the active kit?"_
 ## 5. Project Structure at a Glance
 
 ```
-automation-kit/
+sqe-kit/
 ├── kit.config.json               ← Active kit configuration (change this to switch kits)
 ├── CLAUDE.md                     ← Orchestrator rules (do not edit unless extending the kit)
-├── tc-to-automate/kits/
-│   ├── _base/
-│   │   └── agents/               ← Shared AI agents (intake, locator, pom, testgen, bdd, etc.)
-│   └── kit-u1/                   ← Playwright TypeScript kit
-│       ├── KIT.md                ← Kit-specific naming rules
-│       └── templates/            ← Code templates
-├── story-to-testcase/               ← User story → manual TC pipeline (kit-independent)
-│   ├── agents/                   ← Orchestration, analysis, and specialist agents
+│
+├── req-to-story/                 ← Capability 1: Req Doc → User Stories (kit-independent)
+│   ├── agents/                   ← req-ingestor, req-analyzer, feature-splitter, user-story-writer
+│   ├── skills/                   ← req-text-extractor (format detection + extraction)
+│   └── rules/                    ← user-story-quality rules
+│
+├── story-to-testcase/            ← Capability 2: User Story → Manual TCs (kit-independent)
+│   ├── agents/                   ← quality-master-orchestrator, 8 specialist agents, gap-filler
 │   ├── skills/                   ← user-story-parser, tc-formatter-bdd, tc-formatter-nonbdd
-│   └── rules/                    ← Manual TC quality rules
-├── inputs/snapshots/                    ← PUT YOUR HTML SNAPSHOTS HERE
-├── configs/
-│   └── integrations.yml          ← Plugin configuration (Jira, GitHub, Allure Server)
-├── outputs/
-│   └── playwright-greenfieldproject/   ← All generated files go here
-│       ├── manual-tests/         ← Manual TC pipeline output (Input Type 1)
-│       │   ├── manual-tcs/bdd/   ← Final BDD .feature manual TCs
-│       │   └── manual-tcs/nonbdd/ ← Final non-BDD TC documents
-│       ├── intake.summary.json   ← Input classification (automation pipeline)
-│       ├── selectors.json        ← Selector map (auto-generated)
-│       ├── src/pages/            ← Page Object Model classes
-│       ├── tests/nonbdd/         ← Playwright spec files
-│       ├── tests/bdd/            ← Feature files + step definitions
-│       └── playwright.config.ts  ← Test runner config
-└── docs/
-    ├── TECHNICAL-REFERENCE.md    ← Deep technical reference for kit developers
-    └── USER-GUIDE.md             ← This file
+│   └── rules/                    ← manual-tc-quality rules
+│
+├── tc-to-automate/               ← Capability 3: Test Cases → Automation (kit-aware)
+│   ├── kits/
+│   │   ├── _base/agents/         ← Shared agents: intake, locator, pom, testgen, bdd, etc.
+│   │   └── kit-u1/               ← Playwright TypeScript kit (KIT.md + templates)
+│   ├── configs/
+│   │   └── integrations.yml      ← Plugin configuration (Jira, GitHub, Allure Server)
+│   └── rules/                    ← Code generation rules (playwright-ts, page-objects, bdd-gherkin)
+│
+├── inputs/
+│   ├── req-docs/                 ← PUT REQUIREMENT DOCUMENTS HERE (for /gen-user-stories)
+│   ├── user-stories/             ← PUT USER STORY FILES HERE (for /gen-manual-tests, /e2e)
+│   ├── snapshots/                ← PUT HTML SNAPSHOTS HERE (for Tier 2 locator extraction)
+│   └── test-cases/               ← PUT TEST CASE FILES HERE (for /generate-automation-tests)
+│
+└── outputs/
+    └── playwright-greenfieldproject/   ← All generated files go here
+        ├── user-stories/         ← Capability 1 output (US-NNN.md + US-INDEX.md)
+        ├── manual-tests/         ← Capability 2 output
+        │   ├── manual-tcs/bdd/   ← Final BDD .feature manual TCs
+        │   └── manual-tcs/nonbdd/ ← Final non-BDD TC documents
+        ├── intake.summary.json   ← Capability 3 input contract
+        ├── selectors.json        ← Selector map
+        ├── src/pages/            ← Page Object Model classes
+        ├── tests/nonbdd/         ← Playwright spec files
+        ├── tests/bdd/            ← Feature files + step definitions
+        └── playwright.config.ts  ← Test runner config
 ```
 
 ---
@@ -298,6 +316,53 @@ A browser window opens showing the Playwright HTML report.
 
 ---
 
+## 6b. Quick-Start: From Requirement Doc to User Stories
+
+This walkthrough shows the Capability 1 pipeline: a requirement document → user story files.
+
+### Step 1 — Place your requirement document in `inputs/req-docs/`
+
+Supported formats: `.pdf`, `.docx`, `.xlsx`, `.md`, `.txt`, `.yaml`, `.json`, `.xml`, `.png`, `.jpg`
+
+```bash
+# Example: copy a requirements file into the input directory
+cp ~/Downloads/product-requirements.pdf inputs/req-docs/
+```
+
+### Step 2 — Run `/gen-user-stories`
+
+```
+/gen-user-stories --req inputs/req-docs/product-requirements.pdf
+```
+
+The pipeline runs four agents in sequence:
+1. `req-ingestor` — detects format and extracts text
+2. `req-analyzer` — classifies doc type, identifies actors, NFRs, scope
+3. `feature-splitter` — splits into discrete features (`feature-map.json`)
+4. `user-story-writer` — generates one `US-NNN.md` per feature
+
+### Step 3 — Review generated stories
+
+```
+outputs/playwright-greenfieldproject/user-stories/
+├── US-001-user-registration.md
+├── US-002-profile-management.md
+├── US-003-payment-flow.md
+└── US-INDEX.md
+```
+
+### Step 4 — Feed stories into the next capability
+
+```bash
+# Generate manual TCs for one story
+/gen-manual-tests --story outputs/playwright-greenfieldproject/user-stories/US-001-user-registration.md
+
+# Or run the full pipeline (stories → manual TCs → automation) in one step
+/gen-user-stories --req inputs/req-docs/product-requirements.pdf --then-e2e --url https://staging.myapp.com
+```
+
+---
+
 ## 7. Command Reference
 
 All commands are typed in the Claude Code chat panel. Commands starting with `/` are **slash
@@ -305,24 +370,24 @@ commands** that trigger automated generation pipelines.
 
 ### Command Overview
 
-| Command | Input | Output |
-|---------|-------|--------|
-| `/gen-user-stories` | Requirement doc (BRD, PRD, Feature Spec, image, etc.) | `US-NNN.md` user story files |
-| `/gen-manual-tests` | User story | Manual TCs only (BDD `.feature` or non-BDD `.md`) |
-| `/e2e` | User story | Manual TCs + automation artifacts |
-| `/generate-automation-tests` | Test cases or user story | Automation artifacts (POMs + specs) |
-| `/gen-bdd` | Test cases | BDD feature + step files only |
-| `/add-test` | Test case | Single new spec added to existing project |
-| `/generate-locators` | URL or DOM | `selectors.json` only |
-| `/generate-page-objects` | `selectors.json` | POM files only |
-| `/ingest` | Any input | `intake.summary.json` only |
-| `/run-smoke` | — | Runs `@smoke` tests + report |
-| `/run-test` | — | Runs specific test file |
-| `/setup-kit` | — | Scaffolds project structure |
-| `/setup-reporting` | — | Configures Allure reporting |
-| `/setup-ci` | — | Generates GitHub Actions CI |
-| `/validate-kit` | — | TypeScript + test discovery check |
-| `/gen-data` | — | Generates test data fixtures |
+| Command | Capability | Input | Output |
+|---------|-----------|-------|--------|
+| `/gen-user-stories` | 1 — Req-to-Story | Requirement doc | `US-NNN.md` user story files |
+| `/gen-manual-tests` | 2 — Story-to-Testcase | User story | Manual TCs only (BDD `.feature` or non-BDD `.md`) |
+| `/e2e` | 2 + 3 | User story | Manual TCs + automation artifacts |
+| `/generate-automation-tests` | 3 — TC-to-Automate | Test cases or user story | Automation artifacts (POMs + specs) |
+| `/gen-bdd` | 3 | Test cases | BDD feature + step files only |
+| `/add-test` | 3 | Test case | Single new spec added to existing project |
+| `/generate-locators` | 3 | URL or DOM | `selectors.json` only |
+| `/generate-page-objects` | 3 | `selectors.json` | POM files only |
+| `/ingest` | 3 | Any input | `intake.summary.json` only |
+| `/run-smoke` | — | — | Runs `@smoke` tests (Playwright + Cucumber) + report |
+| `/run-test` | — | — | Runs all or filtered tests (Playwright + Cucumber) + report |
+| `/setup-kit` | — | — | Scaffolds project structure |
+| `/setup-reporting` | — | — | Configures Allure reporting |
+| `/setup-ci` | — | — | Generates GitHub Actions CI |
+| `/validate-kit` | — | — | TypeScript + test discovery check |
+| `/gen-data` | — | — | Generates test data fixtures |
 
 ---
 
@@ -825,7 +890,38 @@ outputs/playwright-greenfieldproject/
 
 ```bash
 cd outputs/playwright-greenfieldproject
+
+# Run all BDD scenarios
 npx cucumber-js
+
+# Run only @smoke-tagged scenarios
+npx cucumber-js --tags @smoke
+
+# Run only @regression scenarios
+npx cucumber-js --tags @regression
+
+# Dry-run (validate step definitions without executing)
+npx cucumber-js --dry-run
+```
+
+> **Note**: Cucumber requires a `cucumber.js` config file (generated by `/setup-kit`). If you see
+> "No step definitions found", check that `tests/bdd/*.steps.ts` files exist and the config
+> points to the correct paths.
+
+### Running both Playwright and BDD via kit commands
+
+```bash
+# Smoke pack — runs Playwright specs + Cucumber scenarios tagged @smoke
+/run-smoke
+
+# All tests — runs all Playwright specs + all Cucumber scenarios
+/run-test
+
+# BDD only
+/run-smoke --bdd-only
+
+# Playwright only
+/run-smoke --nonbdd-only
 ```
 
 ---
@@ -852,6 +948,26 @@ npx playwright test
 npx playwright test --grep "@smoke"
 # or use the kit command:
 /run-smoke
+```
+
+### Run BDD feature files (Cucumber)
+
+```bash
+cd outputs/playwright-greenfieldproject
+
+# Run all BDD scenarios
+npx cucumber-js
+
+# Run @smoke scenarios only
+npx cucumber-js --tags @smoke
+```
+
+### Run both Playwright + BDD via kit commands
+
+```bash
+# Runs Playwright specs AND Cucumber features, generates combined Allure report
+/run-smoke       # @smoke tagged only
+/run-test        # all tests
 ```
 
 ### Run a specific spec file
@@ -1237,4 +1353,4 @@ The kit will regenerate everything from scratch.
 
 ---
 
-*Last updated: 2026-03-09 | Kit version: kit-u1 | Playwright ^1.44.0*
+*Last updated: 2026-03-13 | Kit version: 2.0 | Three capabilities: req-to-story / story-to-testcase / tc-to-automate*
